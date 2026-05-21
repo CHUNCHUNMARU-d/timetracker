@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { db } from '../db'
 import { msAHora, ahora } from '../utils/tiempo'
-import { emitirActualizacion } from '../utils/sync'
+import { emitirActualizacion, escucharActualizaciones } from '../utils/sync'
+import { registrarPaso } from '../utils/registrarPaso'
 import { puedeTransicionar, esTerminada } from '../utils/estado'
 import RaceClock from '../components/ui/RaceClock'
 import BibTally from '../components/ui/BibTally'
@@ -69,6 +70,27 @@ export default function Timing() {
   // Auto focus input on load
   useEffect(() => { if (!terminada) inputRef.current?.focus() }, [evento, terminada])
 
+  // Cross-tab refresh: when /scan (or any other tab) writes, re-read evento +
+  // tiempos so the results list and phase state in this tab stay current.
+  useEffect(() => {
+    if (!eventoId) return
+    return escucharActualizaciones(async ({ eventoId: srcId }) => {
+      if (srcId !== eventoId) return
+      const [ev, t] = await Promise.all([
+        db.eventos.get(eventoId),
+        db.tiempos.where('eventoId').equals(eventoId).toArray(),
+      ])
+      if (ev) {
+        setEvento(ev)
+        if (ev.configuracion?.pausadoEn !== undefined) setPausadoEn(ev.configuracion.pausadoEn)
+        if (ev.configuracion?.totalPausado !== undefined) setTotalPausado(ev.configuracion.totalPausado ?? 0)
+        if (ev.configuracion?.horaInicio) setHoraInicioGlobal(ev.configuracion.horaInicio)
+        if (ev.configuracion?.horaFin) setHoraFin(ev.configuracion.horaFin)
+      }
+      setTiempos(t)
+    })
+  }, [eventoId])
+
   const esOlas = evento?.configuracion?.inicioTipo === 'olas'
   const carreraIniciada = esOlas ? !!olaActiva : !!horaInicioGlobal
 
@@ -77,15 +99,6 @@ export default function Timing() {
     if (!horaFin || !horaInicioGlobal) return null
     return horaFin - horaInicioGlobal - (totalPausado ?? 0)
   }, [horaFin, horaInicioGlobal, totalPausado])
-
-  function resolverHoraInicio() {
-    if (esOlas && olaActiva) {
-      const cat = evento.categorias?.find(c => c.id === olaActiva.categoriaId)
-      const ola = cat?.olas?.find(o => o.id === olaActiva.olaId)
-      return ola?.horaInicio ?? horaInicioGlobal
-    }
-    return horaInicioGlobal
-  }
 
   function showFlash(payload, ms = 2500) {
     setFlash(payload)
@@ -215,62 +228,48 @@ export default function Timing() {
     if (!d) return
     setDorsal('')
 
-    if (pausadoEn) {
-      showFlash({ error: 'Carrera en pausa — reanuda antes de registrar' })
-      return
-    }
-
-    const horaStart = resolverHoraInicio()
-    if (!horaStart) {
-      showFlash({ error: 'Primero inicia la carrera o una ola' })
-      return
-    }
-
-    const yaRegistrado = tiempos.find(t => t.dorsal === d)
-    if (yaRegistrado) {
-      const atleta = atletas.find(a => a.id === yaRegistrado.atletaId)
-      showFlash({ error: `Dorsal ${d} ya registrado (${atleta?.nombre ?? ''})` })
-      return
-    }
-
-    const atletaEncontrado = atletas.find(a => a.dorsal === d)
-
-    if (esOlas && olaActiva && atletaEncontrado && atletaEncontrado.categoriaId !== olaActiva.categoriaId) {
-      const catCorrecta = evento.categorias?.find(c => c.id === atletaEncontrado.categoriaId)
-      showFlash({ error: `Dorsal ${d} es de categoría "${catCorrecta?.nombre ?? 'otra'}"` }, 3000)
-      return
-    }
-
-    const horaLlegada = ahora()
-    const tiempoNeto = horaLlegada - horaStart - totalPausado
-
-    const registro = {
+    const res = await registrarPaso({
       eventoId,
-      atletaId: atletaEncontrado?.id ?? null,
       dorsal: d,
-      horaLlegada,
-      tiempoNeto,
-      olaId: olaActiva?.olaId ?? null,
-      segmento: 'finish',
-      editado: false,
-      notaEdicion: '',
-    }
-    let newId
-    try {
-      newId = await db.tiempos.add(registro)
-    } catch (err) {
-      showFlash({ error: `No se pudo guardar: ${err.message ?? err}` }, 4000)
+      evento,
+      atletas,
+      tiempos,
+      olaActiva,
+      horaInicioGlobal,
+      totalPausado,
+      pausadoEn,
+      esOlas,
+    })
+
+    if (res.ok) {
+      setTiempos(p => [res.registro, ...p])
+      showFlash({
+        nombre: res.atleta ? `${res.atleta.nombre} ${res.atleta.apellido}` : `Dorsal ${res.registro.dorsal}`,
+        tiempo: msAHora(res.registro.tiempoNeto),
+        desconocido: !res.atleta,
+      }, 3000)
+      inputRef.current?.focus()
       return
     }
-    const nuevoTiempo = { ...registro, id: newId }
-    setTiempos(p => [nuevoTiempo, ...p])
 
-    showFlash({
-      nombre: atletaEncontrado ? `${atletaEncontrado.nombre} ${atletaEncontrado.apellido}` : `Dorsal ${d}`,
-      tiempo: msAHora(tiempoNeto),
-      desconocido: !atletaEncontrado,
-    }, 3000)
-    emitirActualizacion(eventoId)
+    switch (res.code) {
+      case 'PAUSADA':
+        showFlash({ error: 'Carrera en pausa — reanuda antes de registrar' })
+        break
+      case 'NO_INICIADA':
+        showFlash({ error: 'Primero inicia la carrera o una ola' })
+        break
+      case 'DUPLICADO':
+        showFlash({ error: `Dorsal ${res.dorsal} ya registrado (${res.atleta?.nombre ?? ''})` })
+        break
+      case 'CATEGORIA_INCORRECTA':
+        showFlash({ error: `Dorsal ${res.dorsal} es de categoría "${res.categoriaCorrecta}"` }, 3000)
+        break
+      case 'WRITE_FAILED':
+        showFlash({ error: `No se pudo guardar: ${res.message}` }, 4000)
+        break
+      // TERMINADA / VACIO: silent (gated above)
+    }
     inputRef.current?.focus()
   }
 
@@ -316,15 +315,27 @@ export default function Timing() {
           ← {evento.nombre}
         </button>
         <PhaseBadge estado={evento.estado} />
-        <a
-          href={`/pantalla/${id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] bg-bg border border-border-hi hover:border-activa hover:text-activa text-text-mid font-display text-[11px] uppercase tracking-widest transition-colors focus-ring-activa shrink-0"
-        >
-          📺 <span className="hidden sm:inline">Pantalla</span>
-          <span className="font-mono text-[10px] opacity-60">({tiempos.length})</span>
-        </a>
+        <div className="flex items-center gap-2 shrink-0">
+          {!terminada && (
+            <a
+              href={`/eventos/${id}/scan`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] bg-bg border border-border-hi hover:border-activa hover:text-activa text-text-mid font-display text-[11px] uppercase tracking-widest transition-colors focus-ring-activa"
+            >
+              🎯 <span className="hidden sm:inline">Escaneo</span>
+            </a>
+          )}
+          <a
+            href={`/pantalla/${id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] bg-bg border border-border-hi hover:border-activa hover:text-activa text-text-mid font-display text-[11px] uppercase tracking-widest transition-colors focus-ring-activa"
+          >
+            📺 <span className="hidden sm:inline">Pantalla</span>
+            <span className="font-mono text-[10px] opacity-60">({tiempos.length})</span>
+          </a>
+        </div>
       </header>
 
       <main className="flex-1 flex flex-col items-center px-4 py-6 gap-6 max-w-3xl mx-auto w-full">
