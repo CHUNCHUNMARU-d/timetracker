@@ -9,8 +9,8 @@ function getChannel() {
   return channel
 }
 
-export function emitirActualizacion(eventoId) {
-  getChannel()?.postMessage({ tipo: 'actualizacion', eventoId })
+export function emitirActualizacion(eventoId, extras = {}) {
+  getChannel()?.postMessage({ tipo: 'actualizacion', eventoId, ...extras })
 }
 
 export function escucharActualizaciones(callback) {

@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Lint (non-blocking — pre-existing React 19 hook-rule debt)
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Tests
+        run: npm run test:run
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify PWA build artifacts
+        run: |
+          test -f dist/sw.js || (echo "Missing dist/sw.js" && exit 1)
+          test -f dist/manifest.webmanifest || (echo "Missing dist/manifest.webmanifest" && exit 1)
+          node -e "JSON.parse(require('fs').readFileSync('dist/manifest.webmanifest','utf8'))"

@@ -1,14 +1,20 @@
 import { useState, useRef } from 'react'
 import Papa from 'papaparse'
 import { db } from '../db'
-import { uid } from '../utils/tiempo'
+import { esEditable } from '../utils/estado'
+import NeonButton from './ui/NeonButton'
 
 const COLUMNAS = ['dorsal', 'nombre', 'apellido', 'genero', 'año_nacimiento', 'email', 'telefono']
 
-export default function ImportarCSV({ eventoId, categorias, distancias, onImportado }) {
+export default function ImportarCSV({ eventoId, evento, categorias, distancias = [], onImportado }) {
+  const bloqueado = evento && !esEditable(evento)
+  const todasLasOlas = categorias.flatMap(c =>
+    (c.olas ?? []).map(o => ({ id: o.id, label: `${c.nombre} / ${o.nombre}`, categoriaId: c.id }))
+  )
   const [preview, setPreview] = useState(null)
   const [mapeoCat, setMapeoCat] = useState({})
-  const [mapeoDist, setMapeoDist] = useState({})
+  const [mapeoOla, setMapeoOla] = useState({})
+  const [distanciaId, setDistanciaId] = useState(distancias[0]?.id ?? '')
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
   const inputRef = useRef()
@@ -18,25 +24,43 @@ export default function ImportarCSV({ eventoId, categorias, distancias, onImport
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      complete: ({ data }) => {
+      complete: async ({ data }) => {
         if (!data.length) { setError('El archivo está vacío'); return }
-        // Detect category/distance columns from first row
         const keys = Object.keys(data[0])
         const tieneCat = keys.includes('categoria')
-        const tieneDist = keys.includes('distancia')
-        setPreview({ filas: data, tieneCat, tieneDist })
-        // Build unique category/distance strings for mapping
+        const tieneOla = keys.includes('ola')
+
+        let existentes = new Set()
+        try {
+          const enDb = await db.atletas.where('eventoId').equals(eventoId).toArray()
+          existentes = new Set(enDb.map(a => String(a.dorsal).trim()))
+        } catch (err) {
+          setError(`No se pudo verificar duplicados: ${err.message ?? err}`)
+          return
+        }
+        const vistos = new Set()
+        const filas = data.map(row => {
+          const d = String(row.dorsal ?? '').trim()
+          let dup = null
+          if (!d) dup = 'sin-dorsal'
+          else if (existentes.has(d)) dup = 'db'
+          else if (vistos.has(d)) dup = 'csv'
+          if (d) vistos.add(d)
+          return { ...row, __duplicado: dup }
+        })
+
+        setPreview({ filas, tieneCat, tieneOla })
         if (tieneCat) {
           const uniq = [...new Set(data.map(r => r.categoria).filter(Boolean))]
           const map = {}
           uniq.forEach(u => { map[u] = categorias[0]?.id ?? '' })
           setMapeoCat(map)
         }
-        if (tieneDist) {
-          const uniq = [...new Set(data.map(r => r.distancia).filter(Boolean))]
+        if (tieneOla) {
+          const uniq = [...new Set(data.map(r => r.ola).filter(Boolean))]
           const map = {}
-          uniq.forEach(u => { map[u] = distancias[0]?.id ?? '' })
-          setMapeoDist(map)
+          uniq.forEach(u => { map[u] = todasLasOlas[0]?.id ?? '' })
+          setMapeoOla(map)
         }
       },
       error: () => setError('Error al leer el archivo CSV'),
@@ -45,6 +69,7 @@ export default function ImportarCSV({ eventoId, categorias, distancias, onImport
 
   function onDrop(e) {
     e.preventDefault()
+    if (bloqueado) return
     const file = e.dataTransfer?.files[0]
     if (file) procesarArchivo(file)
   }
@@ -52,7 +77,8 @@ export default function ImportarCSV({ eventoId, categorias, distancias, onImport
   async function confirmarImport() {
     if (!preview) return
     setCargando(true)
-    const atletas = preview.filas.map(row => ({
+    const limpias = preview.filas.filter(r => !r.__duplicado)
+    const atletas = limpias.map(row => ({
       eventoId,
       dorsal: String(row.dorsal ?? '').trim(),
       nombre: row.nombre?.trim() ?? '',
@@ -60,33 +86,70 @@ export default function ImportarCSV({ eventoId, categorias, distancias, onImport
       genero: row.genero?.trim().toUpperCase() ?? 'M',
       añoNacimiento: Number(row.año_nacimiento) || 0,
       categoriaId: preview.tieneCat ? (mapeoCat[row.categoria] ?? '') : '',
-      distanciaId: preview.tieneDist ? (mapeoDist[row.distancia] ?? '') : '',
+      olaId: preview.tieneOla ? (mapeoOla[row.ola] ?? '') : '',
+      distanciaId,
+      status: 'activo',
       email: row.email?.trim() ?? '',
       telefono: row.telefono?.trim() ?? '',
     }))
-    await db.atletas.bulkAdd(atletas)
+    try {
+      await db.atletas.bulkAdd(atletas)
+    } catch (err) {
+      setError(`Error al guardar: ${err.message ?? err}`)
+      setCargando(false)
+      return
+    }
     setCargando(false)
     setPreview(null)
     onImportado()
   }
 
+  if (bloqueado) {
+    return (
+      <div className="border border-border bg-bg px-4 py-3 text-text-mid text-xs font-display uppercase tracking-wider">
+        🔒 Importación CSV disponible solo en fase Preparación
+      </div>
+    )
+  }
+
+  const numDup = preview?.filas.filter(r => r.__duplicado).length ?? 0
+  const numImportables = preview ? preview.filas.length - numDup : 0
+  const inputCls = 'w-full bg-bg border border-border focus:border-activa px-3 py-2 text-text-hi text-sm focus:outline-none transition-colors'
+
   if (preview) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-white">Vista previa — {preview.filas.length} atletas</h3>
-          <button onClick={() => setPreview(null)} className="text-slate-400 hover:text-white text-sm">Cancelar</button>
+          <h3 className="font-display text-base uppercase tracking-widest text-text-hi">
+            Vista previa · {preview.filas.length} atletas
+          </h3>
+          <button onClick={() => setPreview(null)} className="text-text-mid hover:text-text-hi text-xs font-display uppercase tracking-widest transition-colors">
+            Cancelar
+          </button>
         </div>
 
-        {/* Category mapping */}
+        {distancias.length > 0 && (
+          <div className="bg-bg p-4 border border-border">
+            <label className="block text-[10px] font-display uppercase tracking-widest text-text-lo mb-2">
+              Distancia para todos los atletas importados
+            </label>
+            <select className={inputCls} value={distanciaId} onChange={e => setDistanciaId(e.target.value)}>
+              <option value="">Selecciona una distancia</option>
+              {distancias.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+            </select>
+          </div>
+        )}
+
         {preview.tieneCat && Object.keys(mapeoCat).length > 0 && (
-          <div className="bg-slate-900 rounded-xl p-4 border border-slate-700 space-y-2">
-            <p className="text-sm text-slate-400 mb-2">Mapear categorías del CSV a las categorías del evento:</p>
+          <div className="bg-bg p-4 border border-border space-y-2">
+            <p className="text-[10px] font-display uppercase tracking-widest text-text-lo mb-2">
+              Mapear categorías del CSV
+            </p>
             {Object.keys(mapeoCat).map(csvCat => (
               <div key={csvCat} className="flex items-center gap-3">
-                <span className="text-sm text-slate-300 w-32 shrink-0">{csvCat}</span>
+                <span className="text-sm text-text-mid w-32 shrink-0">{csvCat}</span>
                 <select
-                  className="flex-1 bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none"
+                  className={inputCls}
                   value={mapeoCat[csvCat]}
                   onChange={e => setMapeoCat(p => ({ ...p, [csvCat]: e.target.value }))}
                 >
@@ -98,53 +161,66 @@ export default function ImportarCSV({ eventoId, categorias, distancias, onImport
           </div>
         )}
 
-        {/* Distance mapping */}
-        {preview.tieneDist && Object.keys(mapeoDist).length > 0 && (
-          <div className="bg-slate-900 rounded-xl p-4 border border-slate-700 space-y-2">
-            <p className="text-sm text-slate-400 mb-2">Mapear distancias del CSV:</p>
-            {Object.keys(mapeoDist).map(csvDist => (
-              <div key={csvDist} className="flex items-center gap-3">
-                <span className="text-sm text-slate-300 w-32 shrink-0">{csvDist}</span>
+        {preview.tieneOla && Object.keys(mapeoOla).length > 0 && (
+          <div className="bg-bg p-4 border border-border space-y-2">
+            <p className="text-[10px] font-display uppercase tracking-widest text-text-lo mb-2">
+              Mapear olas del CSV
+            </p>
+            {Object.keys(mapeoOla).map(csvOla => (
+              <div key={csvOla} className="flex items-center gap-3">
+                <span className="text-sm text-text-mid w-32 shrink-0">{csvOla}</span>
                 <select
-                  className="flex-1 bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none"
-                  value={mapeoDist[csvDist]}
-                  onChange={e => setMapeoDist(p => ({ ...p, [csvDist]: e.target.value }))}
+                  className={inputCls}
+                  value={mapeoOla[csvOla]}
+                  onChange={e => setMapeoOla(p => ({ ...p, [csvOla]: e.target.value }))}
                 >
-                  <option value="">Sin distancia</option>
-                  {distancias.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+                  <option value="">Sin ola</option>
+                  {todasLasOlas.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
                 </select>
               </div>
             ))}
           </div>
         )}
 
-        <div className="overflow-x-auto rounded-xl border border-slate-700">
+        {numDup > 0 && (
+          <div className="border border-prep/50 bg-prep/10 px-4 py-3 text-prep text-sm font-display uppercase tracking-wider">
+            ⚠ {numDup} fila{numDup === 1 ? '' : 's'} con dorsal duplicado o vacío — se omitirán
+          </div>
+        )}
+
+        <div className="overflow-x-auto border border-border">
           <table className="w-full text-sm text-left">
-            <thead className="bg-slate-800 text-slate-400">
+            <thead className="bg-bg text-text-lo text-[10px] font-display uppercase tracking-widest">
               <tr>
-                {COLUMNAS.map(c => <th key={c} className="px-3 py-2 font-medium">{c}</th>)}
+                <th className="px-3 py-2 w-6"></th>
+                {COLUMNAS.map(c => <th key={c} className="px-3 py-2">{c}</th>)}
               </tr>
             </thead>
             <tbody>
-              {preview.filas.slice(0, 5).map((row, i) => (
-                <tr key={i} className="border-t border-slate-800 text-slate-300">
+              {preview.filas.slice(0, 10).map((row, i) => (
+                <tr key={i} className={`border-t border-border ${row.__duplicado ? 'text-prep bg-prep/5' : 'text-text-mid'}`}>
+                  <td className="px-2 py-1.5 text-xs text-center" title={row.__duplicado ?? ''}>
+                    {row.__duplicado === 'db' ? '⊘' : row.__duplicado === 'csv' ? '⇆' : row.__duplicado === 'sin-dorsal' ? '✗' : ''}
+                  </td>
                   {COLUMNAS.map(c => <td key={c} className="px-3 py-1.5 truncate max-w-[120px]">{row[c] ?? '—'}</td>)}
                 </tr>
               ))}
             </tbody>
           </table>
-          {preview.filas.length > 5 && (
-            <p className="text-xs text-slate-500 text-center py-2">... y {preview.filas.length - 5} más</p>
+          {preview.filas.length > 10 && (
+            <p className="text-xs text-text-lo text-center py-2">… y {preview.filas.length - 10} más</p>
           )}
         </div>
 
-        <button
+        <NeonButton
+          variant="primary"
+          size="lg"
           onClick={confirmarImport}
-          disabled={cargando}
-          className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition-colors"
+          disabled={cargando || numImportables === 0 || (distancias.length > 0 && !distanciaId)}
+          className="w-full"
         >
-          {cargando ? 'Importando...' : `Importar ${preview.filas.length} atletas`}
-        </button>
+          {cargando ? 'Importando…' : `Importar ${numImportables} atleta${numImportables === 1 ? '' : 's'}`}
+        </NeonButton>
       </div>
     )
   }
@@ -155,12 +231,14 @@ export default function ImportarCSV({ eventoId, categorias, distancias, onImport
         onDrop={onDrop}
         onDragOver={e => e.preventDefault()}
         onClick={() => inputRef.current?.click()}
-        className="border-2 border-dashed border-slate-600 hover:border-emerald-500 rounded-xl p-8 text-center cursor-pointer transition-colors"
+        className="border-2 border-dashed border-border hover:border-activa hover:bg-activa/5 p-8 text-center cursor-pointer transition-colors"
       >
-        <div className="text-3xl mb-2">📂</div>
-        <p className="text-slate-300 font-medium">Arrastra un CSV o haz clic para seleccionar</p>
-        <p className="text-slate-500 text-xs mt-2">
-          Columnas: dorsal, nombre, apellido, genero, año_nacimiento, categoria, distancia, email, telefono
+        <div className="text-3xl mb-2 opacity-70">📂</div>
+        <p className="text-text-hi font-display uppercase tracking-widest text-sm">
+          Arrastra un CSV o haz clic
+        </p>
+        <p className="text-text-lo text-[10px] mt-3 font-mono uppercase tracking-wider">
+          Columnas: dorsal, nombre, apellido, genero, año_nacimiento, categoria, ola, email, telefono
         </p>
         <input
           ref={inputRef}
@@ -170,7 +248,7 @@ export default function ImportarCSV({ eventoId, categorias, distancias, onImport
           onChange={e => e.target.files[0] && procesarArchivo(e.target.files[0])}
         />
       </div>
-      {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
+      {error && <p className="text-danger text-sm mt-2 font-display uppercase tracking-wider">{error}</p>}
     </div>
   )
 }

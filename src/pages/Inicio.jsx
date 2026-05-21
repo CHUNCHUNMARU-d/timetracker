@@ -1,19 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db'
+import { CLS } from '../utils/estado'
+import PhaseBadge from '../components/ui/PhaseBadge'
+import NeonButton from '../components/ui/NeonButton'
 
-const TIPO_COLORES = {
-  triatlón: 'bg-blue-600',
-  duatlón: 'bg-orange-600',
-  carrera: 'bg-green-600',
-  ciclismo: 'bg-purple-600',
-  otro: 'bg-slate-600',
-}
-
-const ESTADO_BADGE = {
-  borrador: 'bg-slate-700 text-slate-300',
-  activo: 'bg-green-800 text-green-200',
-  finalizado: 'bg-slate-800 text-slate-400',
+const TIPO_LABEL = {
+  triatlón: 'TRI',
+  duatlón: 'DUA',
+  carrera: 'RUN',
+  ciclismo: 'BIKE',
+  otro: 'ETC',
 }
 
 export default function Inicio() {
@@ -27,82 +24,114 @@ export default function Inicio() {
   async function eliminarEvento(e, id) {
     e.stopPropagation()
     if (!confirm('¿Eliminar este evento y todos sus datos?')) return
-    await db.eventos.delete(id)
-    await db.atletas.where('eventoId').equals(id).delete()
-    await db.tiempos.where('eventoId').equals(id).delete()
-    setEventos(prev => prev.filter(ev => ev.id !== id))
+    try {
+      await db.transaction('rw', db.eventos, db.atletas, db.tiempos, async () => {
+        await db.eventos.delete(id)
+        await db.atletas.where('eventoId').equals(id).delete()
+        await db.tiempos.where('eventoId').equals(id).delete()
+      })
+      setEventos(prev => prev.filter(ev => ev.id !== id))
+    } catch (err) {
+      alert(`Error al eliminar evento: ${err.message ?? err}`)
+    }
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 p-4 md:p-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+    <div className="min-h-screen bg-bg bg-grid">
+      <div className="max-w-4xl mx-auto px-4 py-8 md:py-12">
+        {/* Header */}
+        <header className="flex items-end justify-between mb-10 gap-4 flex-wrap">
           <div>
-            <h1 className="text-3xl font-bold text-white">Cronometraje</h1>
-            <p className="text-slate-400 mt-1">Gestión de eventos de carrera</p>
+            <p className="font-display text-[10px] uppercase tracking-[0.4em] text-text-lo mb-2">
+              ◢◣ Stadium Timing
+            </p>
+            <h1 className="font-display text-5xl md:text-6xl font-bold text-text-hi leading-none">
+              CRONÓ<span className="text-activa">·</span>METRO
+            </h1>
+            <p className="text-text-mid text-sm mt-2 font-mono">
+              {eventos.length.toString().padStart(2, '0')} eventos · {eventos.filter(e => e.estado === 'activa').length} activos
+            </p>
           </div>
-          <button
-            onClick={() => navigate('/eventos/nuevo')}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors"
-          >
+          <NeonButton variant="primary" size="lg" onClick={() => navigate('/eventos/nuevo')}>
             + Nuevo evento
-          </button>
-        </div>
+          </NeonButton>
+        </header>
 
         {eventos.length === 0 ? (
-          <div className="text-center py-20 text-slate-500">
-            <div className="text-5xl mb-4">🏁</div>
-            <p className="text-lg">No hay eventos aún</p>
-            <p className="text-sm mt-1">Crea tu primer evento para comenzar</p>
+          <div className="border border-border bg-surface py-20 text-center">
+            <div className="text-5xl mb-4 opacity-60">🏁</div>
+            <p className="font-display text-lg uppercase tracking-widest text-text-mid">Sin eventos</p>
+            <p className="text-text-lo text-sm mt-2">Crea tu primer evento para comenzar</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {eventos.map(ev => (
-              <div
-                key={ev.id}
-                onClick={() => navigate(`/eventos/${ev.id}`)}
-                className="bg-slate-800 border border-slate-700 rounded-xl p-5 cursor-pointer hover:border-slate-500 transition-colors group"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full text-white ${TIPO_COLORES[ev.tipo] ?? TIPO_COLORES.otro}`}>
-                        {ev.tipo}
-                      </span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${ESTADO_BADGE[ev.estado]}`}>
-                        {ev.estado}
-                      </span>
-                    </div>
-                    <h2 className="text-xl font-semibold text-white mt-2 truncate">{ev.nombre}</h2>
-                    <p className="text-slate-400 text-sm mt-1">
-                      {ev.lugar} · {ev.fecha}
-                    </p>
-                    <div className="flex gap-4 mt-2 text-xs text-slate-500">
-                      <span>{ev.distancias?.length ?? 0} distancias</span>
-                      <span>{ev.categorias?.length ?? 0} categorías</span>
+            {eventos.map(ev => {
+              const estado = ev.estado ?? 'preparacion'
+              const cls = CLS[estado] ?? CLS.preparacion
+              return (
+                <article
+                  key={ev.id}
+                  className="group relative bg-surface border border-border hover:border-border-hi transition-colors"
+                >
+                  {/* Phase-tinted left edge — 4px strip */}
+                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${cls.bg}`} aria-hidden="true" />
+
+                  <div className="pl-5 pr-4 py-4 grid grid-cols-[1fr_auto] gap-4 items-start">
+                    {/* Body — clickable */}
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/eventos/${ev.id}`)}
+                      className="text-left focus-ring-activa"
+                    >
+                      <div className="flex items-center gap-2 flex-wrap mb-2">
+                        <span className="font-display text-[10px] font-bold uppercase tracking-widest text-text-lo bg-elevated border border-border px-2 py-0.5">
+                          {TIPO_LABEL[ev.tipo] ?? 'EVT'}
+                        </span>
+                        <PhaseBadge estado={estado} />
+                        <span className="font-mono text-[10px] text-text-lo">
+                          #{String(ev.id).padStart(4, '0')}
+                        </span>
+                      </div>
+                      <h2 className="font-display text-xl md:text-2xl font-bold text-text-hi truncate">
+                        {ev.nombre}
+                      </h2>
+                      <p className="text-text-mid text-sm mt-1">
+                        {ev.lugar} <span className="text-text-lo">·</span> {ev.fecha}
+                      </p>
+                      <div className="flex gap-4 mt-3 text-[11px] font-mono text-text-lo uppercase tracking-wider">
+                        <span>{ev.distancias?.length ?? 0} dist.</span>
+                        <span>{ev.categorias?.length ?? 0} cat.</span>
+                      </div>
+                    </button>
+
+                    {/* Actions column */}
+                    <div className="flex flex-col items-end gap-2">
+                      <a
+                        href={`/pantalla/${ev.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] bg-bg border border-border-hi hover:border-activa hover:text-activa text-text-mid font-display text-[11px] uppercase tracking-wider transition-colors focus-ring-activa"
+                      >
+                        📺 Pantalla
+                        <span className="opacity-60" aria-hidden="true">↗</span>
+                      </a>
+                      <button
+                        type="button"
+                        onClick={(e) => eliminarEvento(e, ev.id)}
+                        className="opacity-0 group-hover:opacity-100 text-text-lo hover:text-danger transition-all text-xs px-2 py-1"
+                        title="Eliminar"
+                        aria-label={`Eliminar ${ev.nombre}`}
+                      >
+                        ✕
+                      </button>
                     </div>
                   </div>
-                  <button
-                    onClick={(e) => eliminarEvento(e, ev.id)}
-                    className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 transition-all p-1 shrink-0"
-                    title="Eliminar"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            ))}
+                </article>
+              )
+            })}
           </div>
         )}
-
-        <div className="mt-8 text-center">
-          <button
-            onClick={() => navigate('/pantalla')}
-            className="text-slate-500 hover:text-slate-300 text-sm transition-colors"
-          >
-            Abrir pantalla de resultados →
-          </button>
-        </div>
       </div>
     </div>
   )

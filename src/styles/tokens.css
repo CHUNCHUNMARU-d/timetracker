@@ -1,0 +1,24 @@
+/* Stadium Scoreboard — design tokens.
+   Imported by src/index.css. Exposed to Tailwind v4 via @theme block. */
+:root {
+  --bg:         #08090B;
+  --surface:    #14151A;
+  --elevated:   #1C1E25;
+  --border:     #2A2D35;
+  --border-hi:  #3D414D;
+
+  --text-hi:    #F4F5F7;
+  --text-mid:   #B6B9C2;
+  --text-lo:    #6B6E78;
+
+  --prep:       #FFB800;
+  --activa:     #00FF88;
+  --terminada:  #6B7280;
+  --danger:     #FF3355;
+
+  --glow-activa:  0 0 24px rgba(0, 255, 136, 0.35);
+  --glow-prep:    0 0 24px rgba(255, 184, 0, 0.30);
+  --glow-danger:  0 0 28px rgba(255, 51, 85, 0.45);
+
+  --grid-line: rgba(255, 255, 255, 0.03);
+}

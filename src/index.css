@@ -1,17 +1,115 @@
 @import "tailwindcss";
+@import "./styles/tokens.css";
 
-* {
-  box-sizing: border-box;
+@theme {
+  --color-bg:         #08090B;
+  --color-surface:    #14151A;
+  --color-elevated:   #1C1E25;
+  --color-border:     #2A2D35;
+  --color-border-hi:  #3D414D;
+
+  --color-text-hi:    #F4F5F7;
+  --color-text-mid:   #B6B9C2;
+  --color-text-lo:    #6B6E78;
+
+  --color-prep:       #FFB800;
+  --color-activa:     #00FF88;
+  --color-terminada:  #6B7280;
+  --color-danger:     #FF3355;
+
+  --font-display: "Oxanium", system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+  --font-sans:    "Geist", system-ui, sans-serif;
+
+  --shadow-glow-activa:  0 0 24px rgba(0, 255, 136, 0.35);
+  --shadow-glow-prep:    0 0 24px rgba(255, 184, 0, 0.30);
+  --shadow-glow-danger:  0 0 28px rgba(255, 51, 85, 0.45);
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
 }
 
-body {
+* { box-sizing: border-box; }
+
+html, body {
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
-  background: #0f172a;
-  color: #f1f5f9;
+  background: var(--bg);
+  color: var(--text-hi);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-#root {
-  min-height: 100vh;
+#root { min-height: 100vh; }
+
+/* Subtle scanline grid backdrop — only on dark fills, never under text */
+.bg-grid {
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Tabular digits everywhere mono is used */
+.font-mono, code, kbd, samp, pre {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Phase pill base — paired with phase color util */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Race-clock segmented look — JetBrains Mono with wide tracking */
+.digits {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Soft 1Hz pulse for "running" state */
+@keyframes scoreboard-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.72; }
+}
+.pulse-1s { animation: scoreboard-pulse 1s steps(2, end) infinite; }
+
+/* Glow utility for active interactive elements */
+.glow-activa  { box-shadow: var(--shadow-glow-activa); }
+.glow-prep    { box-shadow: var(--shadow-glow-prep); }
+.glow-danger  { box-shadow: var(--shadow-glow-danger); }
+
+/* Focus rings keyed to phase context — used by NeonButton */
+.focus-ring-activa:focus-visible {
+  outline: 2px solid var(--activa);
+  outline-offset: 2px;
+}
+.focus-ring-prep:focus-visible {
+  outline: 2px solid var(--prep);
+  outline-offset: 2px;
+}
+.focus-ring-danger:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 2px;
+}
+
+/* Sticky table headers on Resultados */
+.table-sticky thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
 }
