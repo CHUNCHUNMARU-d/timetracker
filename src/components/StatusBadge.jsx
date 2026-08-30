@@ -18,6 +18,7 @@ export default function StatusBadge({ status, size = 'sm' }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const STATUS_LABELS = {
   activo: 'Activo',
   dns: 'DNS (no salió)',

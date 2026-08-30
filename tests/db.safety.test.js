@@ -11,7 +11,7 @@
 //   - edge-value handling (empty / null / very long)
 //   - concurrent / interleaved writes
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import Dexie from 'dexie'
 
 // Helper: a fresh DB matching the shipped schema (v1 → v2 → v3).

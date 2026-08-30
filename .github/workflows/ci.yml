@@ -19,9 +19,8 @@ jobs:
 
       - run: npm ci
 
-      - name: Lint (non-blocking — pre-existing React 19 hook-rule debt)
+      - name: Lint
         run: npm run lint
-        continue-on-error: true
 
       - name: Tests
         run: npm run test:run

@@ -46,3 +46,4 @@ lerna-debug.log*
 # ── Test / coverage ─────────────────────────────────────────────────────────
 coverage/
 .vitest-cache/
+.vercel

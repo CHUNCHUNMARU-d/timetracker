@@ -29,6 +29,16 @@ export default function Resultados() {
 
   useEffect(() => { cargar() }, [eventoId])
 
+  // El motor PDF se carga bajo demanda. Si el chunk no está en caché, avisar al
+  // operador en vez de dejar el botón sin respuesta.
+  async function exportarPDF(fn, datos) {
+    try {
+      await fn(evento, datos)
+    } catch {
+      alert('No se pudo generar el PDF. Recarga la app con conexión e inténtalo de nuevo.')
+    }
+  }
+
   function exportarJSON() {
     const data = JSON.stringify({ evento, filas }, null, 2)
     const blob = new Blob([data], { type: 'application/json' })
@@ -83,10 +93,10 @@ export default function Resultados() {
               <PhaseBadge estado={evento.estado} />
             </div>
             <div className="flex gap-2 flex-wrap">
-              <NeonButton variant="primary" size="md" onClick={() => exportarResultadosCompletoPDF(evento, filas)}>
+              <NeonButton variant="primary" size="md" onClick={() => exportarPDF(exportarResultadosCompletoPDF, filas)}>
                 📑 PDF por categoría
               </NeonButton>
-              <NeonButton variant="ghost" size="md" onClick={() => exportarResultadosPDF(evento, filasFiltradas)}>
+              <NeonButton variant="ghost" size="md" onClick={() => exportarPDF(exportarResultadosPDF, filasFiltradas)}>
                 📄 PDF
               </NeonButton>
               <NeonButton variant="ghost" size="md" onClick={exportarJSON}>
