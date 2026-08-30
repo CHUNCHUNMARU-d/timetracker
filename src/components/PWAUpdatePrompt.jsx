@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-// eslint-disable-next-line import/no-unresolved
+// virtual: module supplied by vite-plugin-pwa at build time.
 import { registerSW } from 'virtual:pwa-register'
 import NeonButton from './ui/NeonButton'
 

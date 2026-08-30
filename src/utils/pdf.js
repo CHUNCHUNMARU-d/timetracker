@@ -1,6 +1,15 @@
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import { msAHora } from './tiempo'
+
+// jsPDF is ~350 kB and only needed when an operator exports. Loaded on demand so
+// the timing screens ship without it; Workbox still precaches the chunk, so
+// export keeps working offline.
+async function cargarJsPDF() {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ])
+  return { jsPDF, autoTable }
+}
 
 const SLATE_900 = [15, 23, 42]
 const SLATE_100 = [241, 245, 249]
@@ -10,7 +19,8 @@ const PODIUM = {
   3: [254, 215, 170], // orange-200 (bronze)
 }
 
-export function exportarResultadosPDF(evento, filas) {
+export async function exportarResultadosPDF(evento, filas) {
+  const { jsPDF, autoTable } = await cargarJsPDF()
   const doc = new jsPDF()
 
   doc.setFontSize(18)
@@ -41,7 +51,8 @@ export function exportarResultadosPDF(evento, filas) {
   doc.save(`resultados_${evento.nombre.replace(/\s+/g, '_')}.pdf`)
 }
 
-export function exportarResultadosCompletoPDF(evento, filas) {
+export async function exportarResultadosCompletoPDF(evento, filas) {
+  const { jsPDF, autoTable } = await cargarJsPDF()
   const doc = new jsPDF()
   const activos = filas.filter(f => (f.status ?? 'activo') === 'activo' && f.tiempoNeto != null)
   const generado = new Date().toLocaleString('es-MX')
