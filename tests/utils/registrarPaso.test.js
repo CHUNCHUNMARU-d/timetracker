@@ -33,7 +33,6 @@ function baseArgs(overrides = {}) {
     evento: makeEvento(),
     atletas: [makeAtleta()],
     tiempos: [],
-    olaActiva: null,
     horaInicioGlobal: 1_000_000,
     totalPausado: 0,
     pausadoEn: null,
@@ -110,11 +109,10 @@ describe('registrarPaso — success path', () => {
     expect(res.registro.atletaId).toBe(100)
   })
 
-  it('in wave mode, uses ola.horaInicio (not horaInicioGlobal) for tiempoNeto', async () => {
-    const olaActiva = { categoriaId: 'cat-A', olaId: 'ola-1' }
+  it("in wave mode, uses the athlete's ola.horaInicio (not horaInicioGlobal) for tiempoNeto", async () => {
     // Ola horaInicio = 1_005_000 (5s later than global); Date.now mocked to 1_010_000 → net = 5_000
     const evento = makeEvento({
-      configuracion: { inicioTipo: 'olas', olaActiva },
+      configuracion: { inicioTipo: 'olas' },
       categorias: [
         { id: 'cat-A', nombre: 'Élite', olas: [{ id: 'ola-1', nombre: 'Ola 1', horaInicio: 1_005_000 }] },
       ],
@@ -122,7 +120,6 @@ describe('registrarPaso — success path', () => {
     const res = await registrarPaso(baseArgs({
       evento,
       atletas: [makeAtleta({ categoriaId: 'cat-A', olaId: 'ola-1' })],
-      olaActiva,
       esOlas: true,
     }))
     expect(res.ok).toBe(true)
@@ -157,17 +154,15 @@ describe('registrarPaso — guard paths', () => {
     expect(await db.tiempos.count()).toBe(0)
   })
 
-  it('returns NO_INICIADA in wave mode when active wave has no horaInicio yet', async () => {
-    const olaActiva = { categoriaId: 'cat-A', olaId: 'ola-1' }
+  it('returns NO_INICIADA in wave mode when no ola has started yet', async () => {
     const evento = makeEvento({
-      configuracion: { inicioTipo: 'olas', olaActiva },
+      configuracion: { inicioTipo: 'olas' },
       categorias: [
         { id: 'cat-A', nombre: 'Élite', olas: [{ id: 'ola-1', nombre: 'Ola 1' /* no horaInicio */ }] },
       ],
     })
     const res = await registrarPaso(baseArgs({
       evento,
-      olaActiva,
       esOlas: true,
       horaInicioGlobal: null,
     }))
@@ -185,30 +180,30 @@ describe('registrarPaso — guard paths', () => {
     expect(await db.tiempos.count()).toBe(0)
   })
 
-  it('returns CATEGORIA_INCORRECTA in wave mode when atleta category != active wave', async () => {
-    const olaActiva = { categoriaId: 'cat-A', olaId: 'ola-1' }
-    // atleta is in cat-B but active wave is cat-A
-    const res = await registrarPaso(baseArgs({
-      evento: makeEvento({ configuracion: { inicioTipo: 'olas', olaActiva } }),
-      atletas: [makeAtleta({ categoriaId: 'cat-B', olaId: 'ola-2' })],
-      olaActiva,
-      esOlas: true,
-    }))
-    expect(res.ok).toBe(false)
-    expect(res.code).toBe('CATEGORIA_INCORRECTA')
-    expect(res.dorsal).toBe('42')
-    expect(res.categoriaCorrecta).toBe('Sub-23')
-    expect(await db.tiempos.count()).toBe(0)
-  })
-
-  it('does NOT enforce category match in mass-start (esOlas=false) mode', async () => {
-    // Even if olaActiva is set somehow, esOlas=false should skip the category guard
+  it('accepts athletes of any category in mass-start (esOlas=false) mode', async () => {
     const res = await registrarPaso(baseArgs({
       atletas: [makeAtleta({ categoriaId: 'cat-B' })],
-      olaActiva: { categoriaId: 'cat-A', olaId: 'ola-1' },
       esOlas: false,
     }))
     expect(res.ok).toBe(true)
+  })
+
+  it("returns OLA_NO_INICIADA when the athlete's own ola has not started", async () => {
+    // Ola 1 started (so the race is running) but the athlete belongs to Ola 2.
+    const evento = makeEvento({
+      configuracion: { inicioTipo: 'olas' },
+      categorias: [
+        { id: 'cat-A', nombre: 'Élite', olas: [{ id: 'ola-1', nombre: 'Ola 1', horaInicio: 1_000_000 }] },
+        { id: 'cat-B', nombre: 'Sub-23', olas: [{ id: 'ola-2', nombre: 'Ola 2' /* not started */ }] },
+      ],
+    })
+    const res = await registrarPaso(baseArgs({
+      evento,
+      atletas: [makeAtleta({ categoriaId: 'cat-B', olaId: 'ola-2' })],
+      esOlas: true,
+    }))
+    expect(res).toEqual({ ok: false, code: 'OLA_NO_INICIADA', dorsal: '42', ola: 'Ola 2' })
+    expect(await db.tiempos.count()).toBe(0)
   })
 
   it('does NOT emit actualizacion on any guard failure', async () => {
@@ -217,6 +212,44 @@ describe('registrarPaso — guard paths', () => {
     await registrarPaso(baseArgs({ pausadoEn: 1_005_000 }))
     await registrarPaso(baseArgs({ horaInicioGlobal: null }))
     expect(actualizacionCalls()).toHaveLength(0)
+  })
+})
+
+// Several olas on course at once: Ola 1 (cat A) started at 1_000_000 — the race
+// start — Ola 1b (cat A) at 1_004_000 and Ola 2 (cat B) at 1_004_000.
+// Date.now is 1_010_000.
+describe('registrarPaso — olas', () => {
+  const eventoOlas = makeEvento({
+    configuracion: { inicioTipo: 'olas' },
+    categorias: [
+      { id: 'cat-A', nombre: 'Élite', olas: [
+        { id: 'ola-1', nombre: 'Ola 1', horaInicio: 1_000_000 },
+        { id: 'ola-1b', nombre: 'Ola 1b', horaInicio: 1_004_000 },
+      ] },
+      { id: 'cat-B', nombre: 'Sub-23', olas: [{ id: 'ola-2', nombre: 'Ola 2', horaInicio: 1_004_000 }] },
+    ],
+  })
+  const args = overrides => baseArgs({ evento: eventoOlas, esOlas: true, ...overrides })
+
+  it('times an athlete of a later ola of the same category from that ola', async () => {
+    const res = await registrarPaso(args({ atletas: [makeAtleta({ categoriaId: 'cat-A', olaId: 'ola-1b' })] }))
+    expect(res.registro).toMatchObject({ tiempoNeto: 6_000, olaId: 'ola-1b' })
+  })
+
+  it('times an athlete of another category from their own ola', async () => {
+    const res = await registrarPaso(args({ atletas: [makeAtleta({ categoriaId: 'cat-B', olaId: 'ola-2' })] }))
+    expect(res.ok).toBe(true)
+    expect(res.registro).toMatchObject({ tiempoNeto: 6_000, olaId: 'ola-2' })
+  })
+
+  it('times an athlete without an ola from the only ola of their category', async () => {
+    const res = await registrarPaso(args({ atletas: [makeAtleta({ categoriaId: 'cat-B', olaId: '' })] }))
+    expect(res.registro).toMatchObject({ tiempoNeto: 6_000, olaId: 'ola-2' })
+  })
+
+  it('times an unregistered dorsal from the race start', async () => {
+    const res = await registrarPaso(args({ dorsal: '999' }))
+    expect(res.registro).toMatchObject({ atletaId: null, tiempoNeto: 10_000, olaId: null })
   })
 })
 

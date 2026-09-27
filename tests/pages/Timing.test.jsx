@@ -11,7 +11,7 @@ async function reset() {
   await db.open()
 }
 
-function seedEvent({ inicioTipo = 'unico', horaInicio = 1_000_000, totalPausado = 0, pausadoEn = null, olaActiva = null, estado = 'activa' } = {}) {
+function seedEvent({ inicioTipo = 'unico', horaInicio = 1_000_000, totalPausado = 0, pausadoEn = null, olaActiva = null, estado = 'activa', inicioOla2 = 1_000_000 } = {}) {
   return db.eventos.add({
     id: 1,
     nombre: 'Carrera Test',
@@ -22,7 +22,7 @@ function seedEvent({ inicioTipo = 'unico', horaInicio = 1_000_000, totalPausado 
     configuracion: { inicioTipo, horaInicio, totalPausado, pausadoEn, olaActiva },
     categorias: [
       { id: 'cat-A', nombre: 'Élite', olas: [{ id: 'ola-1', nombre: 'Ola 1', horaInicio: 1_000_000 }] },
-      { id: 'cat-B', nombre: 'Sub-23', olas: [{ id: 'ola-2', nombre: 'Ola 2', horaInicio: 1_000_000 }] },
+      { id: 'cat-B', nombre: 'Sub-23', olas: [{ id: 'ola-2', nombre: 'Ola 2', horaInicio: inicioOla2 }] },
     ],
     distancias: [],
   })
@@ -102,8 +102,8 @@ describe('Timing — dorsal registration', () => {
     expect(await db.tiempos.count()).toBe(0)
   })
 
-  it('in wave mode, blocks dorsal whose category does not match active wave', async () => {
-    await seedEvent({ inicioTipo: 'olas', horaInicio: 1_000_000, olaActiva: { categoriaId: 'cat-A', olaId: 'ola-1' } })
+  it("in wave mode, times a dorsal from its own ola even when another category's ola is active", async () => {
+    await seedEvent({ inicioTipo: 'olas', horaInicio: 1_000_000, olaActiva: { categoriaId: 'cat-A', olaId: 'ola-1' }, inicioOla2: 1_004_000 })
     await db.atletas.add({ id: 200, eventoId: 1, dorsal: '50', nombre: 'M', apellido: 'N', categoriaId: 'cat-B', olaId: 'ola-2', status: 'activo' })
     vi.spyOn(Date, 'now').mockReturnValue(1_010_000)
 
@@ -112,8 +112,32 @@ describe('Timing — dorsal registration', () => {
     fireEvent.change(input, { target: { value: '50' } })
     fireEvent.click(screen.getByText(/Registrar llegada/))
 
-    await waitFor(() => expect(screen.getByText(/es de categoría/)).toBeInTheDocument())
+    await waitFor(async () => {
+      const rows = await db.tiempos.toArray()
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toMatchObject({ dorsal: '50', tiempoNeto: 6_000, olaId: 'ola-2' })
+    })
+  })
+
+  it('warns instead of timing a dorsal whose ola has not started', async () => {
+    await seedEvent({ inicioTipo: 'olas', horaInicio: 1_000_000, olaActiva: { categoriaId: 'cat-A', olaId: 'ola-1' }, inicioOla2: null })
+    await db.atletas.add({ id: 201, eventoId: 1, dorsal: '51', nombre: 'M', apellido: 'N', categoriaId: 'cat-B', olaId: 'ola-2', status: 'activo' })
+
+    renderTiming()
+    const input = await waitFor(() => getBibInput())
+    fireEvent.change(input, { target: { value: '51' } })
+    fireEvent.click(screen.getByText(/Registrar llegada/))
+
+    expect(await screen.findByText(/Ola 2 aún no inicia/)).toBeInTheDocument()
     expect(await db.tiempos.count()).toBe(0)
+  })
+
+  it('shows started olas as en curso and does not restart them', async () => {
+    await seedEvent({ inicioTipo: 'olas', horaInicio: 1_000_000, olaActiva: { categoriaId: 'cat-A', olaId: 'ola-1' }, inicioOla2: null })
+    renderTiming()
+
+    expect(await screen.findByRole('button', { name: /Ola 1 · en curso/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Iniciar Ola 2/ })).toBeEnabled()
   })
 
   it('strips non-digits from dorsal input', async () => {

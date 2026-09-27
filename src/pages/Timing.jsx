@@ -179,21 +179,7 @@ export default function Timing() {
     const nuevoActiva = { categoriaId, olaId }
     const cat = evento.categorias?.find(c => c.id === categoriaId)
     const ola = cat?.olas?.find(o => o.id === olaId)
-
-    if (ola?.horaInicio) {
-      try {
-        await db.eventos.update(eventoId, {
-          configuracion: { ...evento.configuracion, olaActiva: nuevoActiva },
-        })
-      } catch (err) {
-        showFlash({ error: `No se pudo cambiar ola: ${err.message ?? err}` }, 4000)
-        return
-      }
-      setOlaActiva(nuevoActiva)
-      setEvento(p => ({ ...p, configuracion: { ...p.configuracion, olaActiva: nuevoActiva } }))
-      inputRef.current?.focus()
-      return
-    }
+    if (ola?.horaInicio) return // already running; restarting would change its athletes' times
 
     // First ola start — gate the phase transition too
     if (evento.estado === 'preparacion') {
@@ -234,7 +220,6 @@ export default function Timing() {
       evento,
       atletas,
       tiempos,
-      olaActiva,
       horaInicioGlobal,
       totalPausado,
       pausadoEn,
@@ -262,8 +247,8 @@ export default function Timing() {
       case 'DUPLICADO':
         showFlash({ error: `Dorsal ${res.dorsal} ya registrado (${res.atleta?.nombre ?? ''})` })
         break
-      case 'CATEGORIA_INCORRECTA':
-        showFlash({ error: `Dorsal ${res.dorsal} es de categoría "${res.categoriaCorrecta}"` }, 3000)
+      case 'OLA_NO_INICIADA':
+        showFlash({ error: `${res.ola} aún no inicia (dorsal ${res.dorsal})` }, 3000)
         break
       case 'WRITE_FAILED':
         showFlash({ error: `No se pudo guardar: ${res.message}` }, 4000)
@@ -399,19 +384,17 @@ export default function Timing() {
                     <div className="grid grid-cols-2 gap-2">
                       {cat.olas.map(ola => {
                         const iniciada = !!ola.horaInicio
-                        const activa = olaActiva?.olaId === ola.id
-                        const cls = activa
-                          ? 'bg-surface border-activa text-activa glow-activa'
-                          : iniciada
-                            ? 'bg-surface border-border-hi text-text-hi hover:border-activa'
-                            : 'bg-activa border-activa text-bg hover:shadow-glow-activa'
+                        const cls = iniciada
+                          ? 'bg-surface border-activa text-activa cursor-default'
+                          : 'bg-activa border-activa text-bg hover:shadow-glow-activa'
                         return (
                           <button
                             key={ola.id}
                             onClick={() => iniciarOla(cat.id, ola.id)}
+                            disabled={iniciada}
                             className={`min-h-[56px] py-3 px-4 border-2 font-display font-bold uppercase tracking-widest text-sm transition-shadow focus-ring-activa ${cls}`}
                           >
-                            <div>{activa ? `● ${ola.nombre} · activa` : iniciada ? `✓ ${ola.nombre}` : `▶ Iniciar ${ola.nombre}`}</div>
+                            <div>{iniciada ? `● ${ola.nombre} · en curso` : `▶ Iniciar ${ola.nombre}`}</div>
                             {iniciada && (
                               <div className="font-mono text-xs mt-1 opacity-70 normal-case">
                                 {new Date(ola.horaInicio).toLocaleTimeString('es-MX')}

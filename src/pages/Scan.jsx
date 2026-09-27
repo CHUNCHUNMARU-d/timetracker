@@ -102,7 +102,6 @@ export default function Scan() {
       evento,
       atletas,
       tiempos,
-      olaActiva,
       horaInicioGlobal,
       totalPausado,
       pausadoEn,
@@ -135,8 +134,8 @@ export default function Scan() {
       case 'DUPLICADO':
         showFlash({ error: `Dorsal ${res.dorsal} ya registrado (${res.atleta?.nombre ?? ''})` })
         break
-      case 'CATEGORIA_INCORRECTA':
-        showFlash({ error: `Dorsal ${res.dorsal} es de categoría "${res.categoriaCorrecta}"` }, 3000)
+      case 'OLA_NO_INICIADA':
+        showFlash({ error: `${res.ola} aún no inicia (dorsal ${res.dorsal})` }, 3000)
         break
       case 'WRITE_FAILED':
         showFlash({ error: `No se pudo guardar: ${res.message}` }, 4000)
