@@ -13,17 +13,17 @@ async function reset() {
 
 beforeEach(reset)
 
-function seedEvent({ inicioTipo = 'unico' } = {}) {
+function seedEvent({ inicioTipo = 'unico', estado = 'preparacion', distancias = [{ id: 'd-1', nombre: 'Sprint' }] } = {}) {
   return db.eventos.add({
     id: 1,
     nombre: 'Tri Test',
     fecha: '2026-10-04',
     lugar: 'CDMX',
     tipo: 'triatlón',
-    estado: 'preparacion',
+    estado,
     configuracion: { inicioTipo, horaInicio: null },
     categorias: [{ id: 'cat-A', nombre: 'M 30-34', genero: 'M', edadMin: 30, edadMax: 34, olas: [] }],
-    distancias: [{ id: 'd-1', nombre: 'Sprint' }],
+    distancias,
   })
 }
 
@@ -87,5 +87,38 @@ describe('DetalleEvento — tipo de inicio automático', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Por olas')
     await guardarCambios()
     expect((await db.eventos.get(1)).configuracion.inicioTipo).toBe('olas')
+  })
+})
+
+describe('DetalleEvento — distancias en Configuración', () => {
+  it('renames and adds distances, saved with Guardar cambios', async () => {
+    await seedEvent()
+    await abrirConfiguracion()
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Distancia 1' }), { target: { value: 'Sprint 750 m' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar distancia' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Distancia 2' }), { target: { value: 'Olímpico' } })
+    await guardarCambios()
+
+    const ev = await db.eventos.get(1)
+    expect(ev.distancias.map(d => d.nombre)).toEqual(['Sprint 750 m', 'Olímpico'])
+  })
+
+  it('does not let a distance that athletes run be removed', async () => {
+    await seedEvent({ distancias: [{ id: 'd-1', nombre: 'Sprint' }, { id: 'd-2', nombre: 'Olímpico' }] })
+    await db.atletas.add({ eventoId: 1, dorsal: '7', nombre: 'Ana', apellido: 'López', distanciaId: 'd-1', status: 'activo' })
+    await abrirConfiguracion()
+
+    const [sprint, olimpico] = screen.getAllByRole('button', { name: 'Eliminar distancia' })
+    expect(sprint).toBeDisabled()
+    expect(olimpico).toBeEnabled()
+  })
+
+  it('locks distances once the race is active', async () => {
+    await seedEvent({ estado: 'activa' })
+    await abrirConfiguracion()
+
+    expect(screen.getByRole('textbox', { name: 'Distancia 1' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Agregar distancia' })).toBeNull()
   })
 })

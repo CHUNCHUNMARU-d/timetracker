@@ -9,6 +9,7 @@ import PhaseStrip from '../components/ui/PhaseStrip'
 import PhaseConfirmModal from '../components/ui/PhaseConfirmModal'
 import NeonButton from '../components/ui/NeonButton'
 import EditorCategorias from '../components/EditorCategorias'
+import EditorDistancias from '../components/EditorDistancias'
 import { esEditable, esTerminada, puedeTransicionar, tipoDeInicio } from '../utils/estado'
 
 const TABS = ['Atletas', 'Cronometraje', 'Resultados', 'Configuración']
@@ -23,6 +24,7 @@ export default function DetalleEvento() {
   const [modalAtleta, setModalAtleta] = useState(null)
   const [mostrarCSV, setMostrarCSV] = useState(false)
   const [categorias, setCategorias] = useState([])
+  const [distancias, setDistancias] = useState([])
   const [guardando, setGuardando] = useState(false)
   const [transicion, setTransicion] = useState(null) // { desde, hasta }
 
@@ -40,7 +42,10 @@ export default function DetalleEvento() {
   useEffect(() => { cargar() }, [eventoId])
 
   useEffect(() => {
-    if (evento) setCategorias(evento.categorias ?? [])
+    if (evento) {
+      setCategorias(evento.categorias ?? [])
+      setDistancias(evento.distancias ?? [])
+    }
   }, [evento])
 
   async function confirmarTransicion() {
@@ -80,8 +85,8 @@ export default function DetalleEvento() {
   async function guardarConfig() {
     setGuardando(true)
     const configuracion = { ...evento.configuracion, inicioTipo: tipoDeInicio(categorias) }
-    await db.eventos.update(eventoId, { categorias, configuracion })
-    setEvento(p => ({ ...p, categorias, configuracion }))
+    await db.eventos.update(eventoId, { categorias, distancias, configuracion })
+    setEvento(p => ({ ...p, categorias, distancias, configuracion }))
     setGuardando(false)
   }
 
@@ -111,6 +116,11 @@ export default function DetalleEvento() {
       Cargando…
     </div>
   )
+
+  const atletasPorDistancia = {}
+  atletas.forEach(a => {
+    if (a.distanciaId) atletasPorDistancia[a.distanciaId] = (atletasPorDistancia[a.distanciaId] ?? 0) + 1
+  })
 
   const atletasFiltrados = atletas.filter(a =>
     !busqueda ||
@@ -316,6 +326,15 @@ export default function DetalleEvento() {
                 🔒 Configuración bloqueada — solo en fase Preparación
               </div>
             )}
+
+            <div className="bg-surface p-5 border border-border">
+              <EditorDistancias
+                distancias={distancias}
+                onChange={setDistancias}
+                editable={editable}
+                enUso={atletasPorDistancia}
+              />
+            </div>
 
             <div className="bg-surface p-5 border border-border">
               <EditorCategorias
