@@ -72,6 +72,10 @@ export default function Resultados() {
     (c.olas ?? []).map(o => ({ id: o.id, label: `${c.nombre} / ${o.nombre}` }))
   ) ?? []
 
+  const hayOlas = todasLasOlas.length > 0
+  const labelCls = 'block text-[10px] font-display uppercase tracking-widest text-text-lo mb-1'
+  const selectCls = 'bg-surface border border-border focus:border-activa px-3 py-2 min-h-[40px] text-text-hi text-sm focus:outline-none'
+
   const filasFiltradas = filas.filter(f =>
     (!filtroOla || f.olaId === filtroOla) &&
     (!filtroCat || f.categoriaId === filtroCat) &&
@@ -89,21 +93,25 @@ export default function Resultados() {
             <button onClick={() => navigate('/')} className="text-text-mid hover:text-text-hi text-xs font-display uppercase tracking-widest transition-colors">
               🏠 Inicio
             </button>
-            <a
+            <NeonButton
+              variant="ghost"
+              size="sm"
+              as="a"
               href={`/pantalla/${id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] bg-bg border border-border-hi hover:border-activa hover:text-activa text-text-mid font-display text-[11px] uppercase tracking-widest transition-colors focus-ring-activa"
+              className="ml-auto"
             >
               📺 Pantalla <span className="opacity-60" aria-hidden="true">↗</span>
-            </a>
+            </NeonButton>
           </div>
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <h1 className="font-display text-2xl font-bold text-text-hi">Resultados</h1>
               <PhaseBadge estado={evento.estado} />
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
+              <span className="text-text-lo text-[10px] font-display uppercase tracking-widest mr-1">Exportar</span>
               <NeonButton variant="primary" size="md" onClick={() => exportarPDF(exportarResultadosCompletoPDF, filas)}>
                 📑 PDF por categoría
               </NeonButton>
@@ -116,9 +124,6 @@ export default function Resultados() {
               <NeonButton variant="ghost" size="md" onClick={exportarJSON}>
                 📤 JSON
               </NeonButton>
-              <NeonButton variant="ghost" size="md" onClick={cargar}>
-                ↻
-              </NeonButton>
             </div>
           </div>
         </div>
@@ -126,35 +131,37 @@ export default function Resultados() {
 
       <div className="max-w-6xl mx-auto p-4 md:p-6">
         {/* Filtros */}
-        <div className="flex flex-wrap gap-3 mb-5">
-          <select
-            className="bg-surface border border-border focus:border-activa px-3 py-1.5 text-text-hi text-sm focus:outline-none"
-            value={filtroOla}
-            onChange={e => setFiltroOla(e.target.value)}
-          >
-            <option value="">Todas las olas</option>
-            {todasLasOlas.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-          </select>
-          <select
-            className="bg-surface border border-border focus:border-activa px-3 py-1.5 text-text-hi text-sm focus:outline-none"
-            value={filtroCat}
-            onChange={e => setFiltroCat(e.target.value)}
-          >
-            <option value="">Todas las categorías</option>
-            {evento.categorias?.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-          </select>
-          <select
-            className="bg-surface border border-border focus:border-activa px-3 py-1.5 text-text-hi text-sm focus:outline-none"
-            value={filtroGen}
-            onChange={e => setFiltroGen(e.target.value)}
-          >
-            <option value="">Todos los géneros</option>
-            <option value="M">Masculino</option>
-            <option value="F">Femenino</option>
-          </select>
-          <span className="text-text-lo text-xs font-mono self-center uppercase tracking-wider">
+        <div className="flex flex-wrap items-end gap-3 mb-5">
+          {hayOlas && (
+            <div>
+              <label htmlFor="filtro-ola" className={labelCls}>Ola</label>
+              <select id="filtro-ola" className={selectCls} value={filtroOla} onChange={e => setFiltroOla(e.target.value)}>
+                <option value="">Todas las olas</option>
+                {todasLasOlas.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+              </select>
+            </div>
+          )}
+          <div>
+            <label htmlFor="filtro-categoria" className={labelCls}>Categoría</label>
+            <select id="filtro-categoria" className={selectCls} value={filtroCat} onChange={e => setFiltroCat(e.target.value)}>
+              <option value="">Todas las categorías</option>
+              {evento.categorias?.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="filtro-genero" className={labelCls}>Género</label>
+            <select id="filtro-genero" className={selectCls} value={filtroGen} onChange={e => setFiltroGen(e.target.value)}>
+              <option value="">Todos los géneros</option>
+              <option value="M">Masculino</option>
+              <option value="F">Femenino</option>
+            </select>
+          </div>
+          <span className="text-text-lo text-xs font-mono uppercase tracking-wider pb-2.5">
             {filasFiltradas.length} resultados
           </span>
+          <NeonButton variant="ghost" size="sm" onClick={cargar} className="ml-auto">
+            ↻ Actualizar
+          </NeonButton>
         </div>
 
         {filasFiltradas.length === 0 ? (
@@ -172,9 +179,9 @@ export default function Resultados() {
                   <th className="px-4 py-3">Dorsal</th>
                   <th className="px-4 py-3">Nombre</th>
                   <th className="px-4 py-3 hidden sm:table-cell">Categoría</th>
-                  <th className="px-4 py-3 hidden sm:table-cell">Ola</th>
+                  {hayOlas && <th className="px-4 py-3 hidden sm:table-cell">Ola</th>}
                   <th className="px-4 py-3 text-right">Tiempo</th>
-                  <th className="px-4 py-3 hidden md:table-cell">Cat.</th>
+                  <th className="px-4 py-3 hidden md:table-cell">Lugar cat.</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -196,7 +203,7 @@ export default function Resultados() {
                         {inactivo && <span className="ml-2"><StatusBadge status={f.status} /></span>}
                       </td>
                       <td className="px-4 py-3 hidden sm:table-cell text-text-mid">{f.categoria}</td>
-                      <td className="px-4 py-3 hidden sm:table-cell text-text-mid">{f.ola}</td>
+                      {hayOlas && <td className="px-4 py-3 hidden sm:table-cell text-text-mid">{f.ola}</td>}
                       <td className="px-4 py-3 text-right digits font-bold text-activa">
                         {inactivo ? <span className="text-text-lo">—</span> : msAHora(f.tiempoNeto)}
                       </td>
@@ -230,7 +237,7 @@ function WhatsAppShare({ fila, evento }) {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
   }
   return (
-    <button onClick={enviar} title="Compartir por WhatsApp" className="text-text-lo hover:text-activa transition-colors" aria-label="Compartir por WhatsApp">
+    <button onClick={enviar} title="Compartir por WhatsApp" className="min-h-[40px] min-w-[40px] text-text-mid hover:text-activa transition-colors" aria-label="Compartir por WhatsApp">
       📱
     </button>
   )

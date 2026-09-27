@@ -161,6 +161,40 @@ describe('Timing — dorsal registration', () => {
   })
 })
 
+describe('Timing — accesos y olas', () => {
+  it('Escaneo link opens /eventos/:id/scan in a new tab', async () => {
+    await seedEvent({ horaInicio: 1_000_000 })
+    renderTiming()
+
+    const escaneo = await screen.findByRole('link', { name: /Escaneo/ })
+    expect(escaneo).toHaveAttribute('href', '/eventos/1/scan')
+    expect(escaneo).toHaveAttribute('target', '_blank')
+  })
+
+  it('an ola that has not started offers Iniciar, and starting it activates the race', async () => {
+    await db.eventos.add({
+      id: 1,
+      nombre: 'Olas Test',
+      fecha: '2026-05-21',
+      lugar: 'CDMX',
+      tipo: 'triatlón',
+      estado: 'preparacion',
+      configuracion: { inicioTipo: 'olas' },
+      categorias: [{ id: 'cat-A', nombre: 'Élite', olas: [{ id: 'ola-1', nombre: 'Ola 1' }] }],
+      distancias: [],
+    })
+    await db.atletas.add({ eventoId: 1, dorsal: '1', nombre: 'A', apellido: 'B', categoriaId: 'cat-A', olaId: 'ola-1', status: 'activo' })
+    renderTiming()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Iniciar Ola 1/ }))
+    await waitFor(async () => {
+      const ev = await db.eventos.get(1)
+      expect(ev.estado).toBe('activa')
+      expect(ev.categorias[0].olas[0].horaInicio).toEqual(expect.any(Number))
+    })
+  })
+})
+
 describe('Timing — start guard', () => {
   it('blocks iniciarCarrera when no atletas exist', async () => {
     // Seed event in preparacion with no atletas — start should be blocked

@@ -317,24 +317,14 @@ export default function Timing() {
         <PhaseBadge estado={evento.estado} />
         <div className="flex items-center gap-2 shrink-0">
           {!terminada && (
-            <a
-              href={`/eventos/${id}/scan`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] bg-bg border border-border-hi hover:border-activa hover:text-activa text-text-mid font-display text-[11px] uppercase tracking-widest transition-colors focus-ring-activa"
-            >
+            <NeonButton variant="ghost" size="sm" as="a" href={`/eventos/${id}/scan`} target="_blank" rel="noopener noreferrer">
               🎯 <span className="hidden sm:inline">Escaneo</span>
-            </a>
+            </NeonButton>
           )}
-          <a
-            href={`/pantalla/${id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] bg-bg border border-border-hi hover:border-activa hover:text-activa text-text-mid font-display text-[11px] uppercase tracking-widest transition-colors focus-ring-activa"
-          >
+          <NeonButton variant="ghost" size="sm" as="a" href={`/pantalla/${id}`} target="_blank" rel="noopener noreferrer">
             📺 <span className="hidden sm:inline">Pantalla</span>
             <span className="font-mono text-[10px] opacity-60">({tiempos.length})</span>
-          </a>
+          </NeonButton>
         </div>
       </header>
 
@@ -405,25 +395,25 @@ export default function Timing() {
               <div className="w-full max-w-lg space-y-4">
                 {evento.categorias?.filter(c => (c.olas ?? []).length > 0).map(cat => (
                   <div key={cat.id}>
-                    <p className="text-text-lo text-[10px] mb-2 uppercase tracking-[0.3em] font-display">{cat.nombre}</p>
+                    <p className="text-text-mid text-xs mb-2 uppercase tracking-[0.3em] font-display">{cat.nombre}</p>
                     <div className="grid grid-cols-2 gap-2">
                       {cat.olas.map(ola => {
                         const iniciada = !!ola.horaInicio
                         const activa = olaActiva?.olaId === ola.id
                         const cls = activa
-                          ? 'border-activa text-activa glow-activa'
+                          ? 'bg-surface border-activa text-activa glow-activa'
                           : iniciada
-                            ? 'border-border text-text-mid hover:border-border-hi'
-                            : 'border-activa/60 text-activa hover:border-activa'
+                            ? 'bg-surface border-border-hi text-text-hi hover:border-activa'
+                            : 'bg-activa border-activa text-bg hover:shadow-glow-activa'
                         return (
                           <button
                             key={ola.id}
                             onClick={() => iniciarOla(cat.id, ola.id)}
-                            className={`py-3 px-4 border font-display uppercase tracking-widest text-xs transition-colors ${cls}`}
+                            className={`min-h-[56px] py-3 px-4 border-2 font-display font-bold uppercase tracking-widest text-sm transition-shadow focus-ring-activa ${cls}`}
                           >
-                            <div>{activa ? `● ${ola.nombre}` : iniciada ? `✓ ${ola.nombre}` : `▶ ${ola.nombre}`}</div>
+                            <div>{activa ? `● ${ola.nombre} · activa` : iniciada ? `✓ ${ola.nombre}` : `▶ Iniciar ${ola.nombre}`}</div>
                             {iniciada && (
-                              <div className="font-mono text-[10px] mt-1 opacity-60 normal-case">
+                              <div className="font-mono text-xs mt-1 opacity-70 normal-case">
                                 {new Date(ola.horaInicio).toLocaleTimeString('es-MX')}
                               </div>
                             )}
@@ -514,7 +504,7 @@ export default function Timing() {
           {tiempos.slice(0, 20).map(t => {
             const a = atletas.find(at => at.dorsal === t.dorsal)
             return (
-              <div key={t.id} className="flex items-center justify-between px-4 py-2 border-t border-border hover:bg-surface/50 group">
+              <div key={t.id} className="flex items-center justify-between px-4 py-2 border-t border-border hover:bg-surface/50">
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="font-mono font-bold text-text-hi w-12 shrink-0">{t.dorsal}</span>
                   <span className="text-text-mid text-sm truncate">
@@ -526,8 +516,8 @@ export default function Timing() {
                   <span className="font-mono text-activa text-sm">{msAHora(t.tiempoNeto)}</span>
                   {!terminada && (
                     <>
-                      <button onClick={() => setModalEditar(t)} className="opacity-0 group-hover:opacity-100 text-text-lo hover:text-text-hi text-xs transition-all" aria-label="Editar">✏️</button>
-                      <button onClick={() => eliminarTiempo(t.id)} className="opacity-0 group-hover:opacity-100 text-text-lo hover:text-danger text-xs transition-all" aria-label="Eliminar">✕</button>
+                      <button onClick={() => setModalEditar(t)} className="min-h-[40px] min-w-[40px] text-text-mid hover:text-text-hi text-sm transition-colors" aria-label="Editar">✏️</button>
+                      <button onClick={() => eliminarTiempo(t.id)} className="min-h-[40px] min-w-[40px] text-text-mid hover:text-danger text-sm transition-colors" aria-label="Eliminar">✕</button>
                     </>
                   )}
                 </div>
