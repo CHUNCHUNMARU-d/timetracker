@@ -1,18 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 // virtual: module supplied by vite-plugin-pwa at build time.
 import { registerSW } from 'virtual:pwa-register'
 import NeonButton from './ui/NeonButton'
 
 export default function PWAUpdatePrompt() {
   const [needRefresh, setNeedRefresh] = useState(false)
-  const [updateSW, setUpdateSW] = useState(null)
+  const updateSW = useRef(null) // only the Recargar button reads it
 
   useEffect(() => {
-    const sw = registerSW({
+    updateSW.current = registerSW({
       onNeedRefresh() { setNeedRefresh(true) },
       onOfflineReady() { /* silent */ },
     })
-    setUpdateSW(() => sw)
   }, [])
 
   if (!needRefresh) return null
@@ -30,7 +29,7 @@ export default function PWAUpdatePrompt() {
         <NeonButton variant="ghost" size="sm" onClick={() => setNeedRefresh(false)} className="flex-1">
           Después
         </NeonButton>
-        <NeonButton variant="primary" size="sm" onClick={() => updateSW?.(true)} className="flex-1">
+        <NeonButton variant="primary" size="sm" onClick={() => updateSW.current?.(true)} className="flex-1">
           Recargar
         </NeonButton>
       </div>

@@ -19,16 +19,23 @@ export default function Resultados() {
   const [filtroCat, setFiltroCat] = useState('')
   const [filtroGen, setFiltroGen] = useState('')
   const [cargando, setCargando] = useState(true)
+  const [recarga, setRecarga] = useState(0) // ↻ Actualizar bumps it to reload
 
-  async function cargar() {
+  useEffect(() => {
+    let vigente = true
+    getResultados(eventoId).then(datos => {
+      if (!vigente) return
+      setEvento(datos.evento)
+      setFilas(datos.filas)
+      setCargando(false)
+    })
+    return () => { vigente = false }
+  }, [eventoId, recarga])
+
+  function recargar() {
     setCargando(true)
-    const datos = await getResultados(eventoId)
-    setEvento(datos.evento)
-    setFilas(datos.filas)
-    setCargando(false)
+    setRecarga(n => n + 1)
   }
-
-  useEffect(() => { cargar() }, [eventoId])
 
   // El motor PDF se carga bajo demanda. Si el chunk no está en caché, avisar al
   // operador en vez de dejar el botón sin respuesta.
@@ -159,7 +166,7 @@ export default function Resultados() {
           <span className="text-text-lo text-xs font-mono uppercase tracking-wider pb-2.5">
             {filasFiltradas.length} resultados
           </span>
-          <NeonButton variant="ghost" size="sm" onClick={cargar} className="ml-auto">
+          <NeonButton variant="ghost" size="sm" onClick={recargar} className="ml-auto">
             ↻ Actualizar
           </NeonButton>
         </div>
