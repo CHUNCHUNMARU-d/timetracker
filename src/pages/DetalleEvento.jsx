@@ -8,8 +8,8 @@ import PhaseBadge from '../components/ui/PhaseBadge'
 import PhaseStrip from '../components/ui/PhaseStrip'
 import PhaseConfirmModal from '../components/ui/PhaseConfirmModal'
 import NeonButton from '../components/ui/NeonButton'
-import { uid } from '../utils/tiempo'
-import { esEditable, esTerminada, puedeTransicionar } from '../utils/estado'
+import EditorCategorias from '../components/EditorCategorias'
+import { esEditable, esTerminada, puedeTransicionar, tipoDeInicio } from '../utils/estado'
 
 const TABS = ['Atletas', 'Cronometraje', 'Resultados', 'Configuración']
 
@@ -23,7 +23,6 @@ export default function DetalleEvento() {
   const [modalAtleta, setModalAtleta] = useState(null)
   const [mostrarCSV, setMostrarCSV] = useState(false)
   const [categorias, setCategorias] = useState([])
-  const [configInicio, setConfigInicio] = useState({ inicioTipo: 'unico', horaInicio: null, olas: [] })
   const [guardando, setGuardando] = useState(false)
   const [transicion, setTransicion] = useState(null) // { desde, hasta }
 
@@ -41,10 +40,7 @@ export default function DetalleEvento() {
   useEffect(() => { cargar() }, [eventoId])
 
   useEffect(() => {
-    if (evento) {
-      setCategorias(evento.categorias ?? [])
-      setConfigInicio(evento.configuracion ?? { inicioTipo: 'unico', horaInicio: null })
-    }
+    if (evento) setCategorias(evento.categorias ?? [])
   }, [evento])
 
   async function confirmarTransicion() {
@@ -81,39 +77,11 @@ export default function DetalleEvento() {
     cargar()
   }
 
-  function agregarCategoria() {
-    setCategorias(p => [...p, { id: uid(), nombre: '', genero: 'M', edadMin: null, edadMax: null }])
-  }
-  function actualizarCategoria(id, campo, valor) {
-    setCategorias(p => p.map(c => c.id === id ? { ...c, [campo]: valor } : c))
-  }
-  function eliminarCategoria(id) {
-    setCategorias(p => p.filter(c => c.id !== id))
-  }
-
-  function agregarOlaEnCategoria(catId) {
-    setCategorias(p => p.map(c => c.id !== catId ? c : {
-      ...c,
-      olas: [...(c.olas ?? []), { id: uid(), nombre: `Ola ${(c.olas ?? []).length + 1}`, horaProgramada: '' }],
-    }))
-  }
-  function actualizarOlaEnCategoria(catId, olaId, campo, valor) {
-    setCategorias(p => p.map(c => c.id !== catId ? c : {
-      ...c,
-      olas: c.olas.map(o => o.id === olaId ? { ...o, [campo]: valor } : o),
-    }))
-  }
-  function eliminarOlaEnCategoria(catId, olaId) {
-    setCategorias(p => p.map(c => c.id !== catId ? c : {
-      ...c,
-      olas: c.olas.filter(o => o.id !== olaId),
-    }))
-  }
-
   async function guardarConfig() {
     setGuardando(true)
-    await db.eventos.update(eventoId, { categorias, configuracion: configInicio })
-    setEvento(p => ({ ...p, categorias, configuracion: configInicio }))
+    const configuracion = { ...evento.configuracion, inicioTipo: tipoDeInicio(categorias) }
+    await db.eventos.update(eventoId, { categorias, configuracion })
+    setEvento(p => ({ ...p, categorias, configuracion }))
     setGuardando(false)
   }
 
@@ -349,116 +317,13 @@ export default function DetalleEvento() {
               </div>
             )}
 
-            {/* Tipo de inicio */}
-            <div className="bg-surface p-5 border border-border space-y-4">
-              <h2 className="font-display text-xs uppercase tracking-widest text-text-lo">Tipo de inicio</h2>
-              <div className="flex gap-3">
-                {['unico', 'olas'].map(tipo => {
-                  const sel = configInicio.inicioTipo === tipo
-                  return (
-                    <button
-                      key={tipo}
-                      onClick={() => editable && setConfigInicio(p => ({ ...p, inicioTipo: tipo }))}
-                      disabled={!editable}
-                      className={`flex-1 py-3 border font-display uppercase tracking-widest text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${sel ? 'border-activa text-activa glow-activa' : 'border-border text-text-mid hover:border-border-hi'}`}
-                    >
-                      {tipo === 'unico' ? '🚀 Salida única' : '🌊 Por olas'}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Categorías con olas anidadas */}
-            <div className="space-y-3">
-              <h2 className="font-display text-xs uppercase tracking-widest text-text-lo">Categorías</h2>
-              {categorias.map(c => (
-                <div key={c.id} className="bg-surface border border-border p-4 space-y-3">
-                  <div className="grid grid-cols-[1fr_70px_60px_60px_28px] gap-2 items-center">
-                    <input
-                      className="bg-bg border border-border focus:border-activa px-3 py-2 text-text-hi text-sm focus:outline-none disabled:opacity-40"
-                      placeholder="M 30-34"
-                      disabled={!editable}
-                      value={c.nombre}
-                      onChange={e => actualizarCategoria(c.id, 'nombre', e.target.value)}
-                    />
-                    <select
-                      className="bg-bg border border-border focus:border-activa px-2 py-2 text-text-hi text-sm focus:outline-none disabled:opacity-40"
-                      disabled={!editable}
-                      value={c.genero}
-                      onChange={e => actualizarCategoria(c.id, 'genero', e.target.value)}
-                    >
-                      <option value="M">M</option>
-                      <option value="F">F</option>
-                      <option value="X">X</option>
-                    </select>
-                    <input
-                      type="number"
-                      placeholder="Edad mín"
-                      className="bg-bg border border-border focus:border-activa px-2 py-2 text-text-hi text-sm focus:outline-none disabled:opacity-40"
-                      disabled={!editable}
-                      value={c.edadMin ?? ''}
-                      onChange={e => actualizarCategoria(c.id, 'edadMin', e.target.value === '' ? null : Number(e.target.value))}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Edad máx"
-                      className="bg-bg border border-border focus:border-activa px-2 py-2 text-text-hi text-sm focus:outline-none disabled:opacity-40"
-                      disabled={!editable}
-                      value={c.edadMax ?? ''}
-                      onChange={e => actualizarCategoria(c.id, 'edadMax', e.target.value === '' ? null : Number(e.target.value))}
-                    />
-                    <button
-                      onClick={() => eliminarCategoria(c.id)}
-                      className="text-text-lo hover:text-danger transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                      disabled={!editable || categorias.length === 1}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  {(c.olas ?? []).map(ola => (
-                    <div key={ola.id} className="flex gap-2 items-center pl-3 border-l-2 border-border">
-                      <input
-                        className="flex-1 bg-bg border border-border focus:border-activa px-3 py-1.5 text-text-hi text-sm focus:outline-none disabled:opacity-40"
-                        placeholder="Nombre de ola"
-                        disabled={!editable}
-                        value={ola.nombre}
-                        onChange={e => actualizarOlaEnCategoria(c.id, ola.id, 'nombre', e.target.value)}
-                      />
-                      <input
-                        type="time"
-                        className="bg-bg border border-border focus:border-activa px-3 py-1.5 text-text-hi text-sm focus:outline-none disabled:opacity-40"
-                        disabled={!editable}
-                        value={ola.horaProgramada ?? ''}
-                        onChange={e => actualizarOlaEnCategoria(c.id, ola.id, 'horaProgramada', e.target.value)}
-                      />
-                      <button
-                        onClick={() => eliminarOlaEnCategoria(c.id, ola.id)}
-                        disabled={!editable}
-                        className="text-text-lo hover:text-danger transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                  {editable && (
-                    <button
-                      onClick={() => agregarOlaEnCategoria(c.id)}
-                      className="text-text-mid hover:text-activa text-xs font-display uppercase tracking-widest transition-colors pl-1"
-                    >
-                      + ola
-                    </button>
-                  )}
-                </div>
-              ))}
-              {editable && (
-                <button
-                  onClick={agregarCategoria}
-                  className="text-activa hover:text-text-hi text-sm font-display uppercase tracking-widest transition-colors"
-                >
-                  + Categoría
-                </button>
-              )}
+            <div className="bg-surface p-5 border border-border">
+              <EditorCategorias
+                categorias={categorias}
+                onChange={setCategorias}
+                editable={editable}
+                inicioTipo={editable ? undefined : evento.configuracion?.inicioTipo}
+              />
             </div>
 
             {editable && (

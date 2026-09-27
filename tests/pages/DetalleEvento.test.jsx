@@ -13,7 +13,7 @@ async function reset() {
 
 beforeEach(reset)
 
-function seedEvent() {
+function seedEvent({ inicioTipo = 'unico' } = {}) {
   return db.eventos.add({
     id: 1,
     nombre: 'Tri Test',
@@ -21,7 +21,7 @@ function seedEvent() {
     lugar: 'CDMX',
     tipo: 'triatlón',
     estado: 'preparacion',
-    configuracion: { inicioTipo: 'unico', horaInicio: null },
+    configuracion: { inicioTipo, horaInicio: null },
     categorias: [{ id: 'cat-A', nombre: 'M 30-34', genero: 'M', edadMin: 30, edadMax: 34, olas: [] }],
     distancias: [{ id: 'd-1', nombre: 'Sprint' }],
   })
@@ -36,6 +36,13 @@ async function abrirConfiguracion() {
     </MemoryRouter>,
   )
   fireEvent.click(await screen.findByText('Configuración'))
+}
+
+// Clicks Guardar cambios and waits until the page shows it saved (the button
+// reads "Guardando…" meanwhile).
+async function guardarCambios() {
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+  await screen.findByRole('button', { name: 'Guardar cambios' })
 }
 
 describe('DetalleEvento — edades de categoría', () => {
@@ -58,10 +65,27 @@ describe('DetalleEvento — edades de categoría', () => {
     await seedEvent()
     await abrirConfiguracion()
 
-    fireEvent.click(screen.getByText('+ Categoría'))
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar categoría' }))
     const edades = screen.getAllByRole('spinbutton')
     expect(edades).toHaveLength(4)
     expect(edades[2].value).toBe('')
     expect(edades[3].value).toBe('')
+  })
+})
+
+describe('DetalleEvento — tipo de inicio automático', () => {
+  it('saving Configuración stores the start type the olas imply', async () => {
+    // Stored "olas" with no olas at all: the old trap that left Timing without a start button.
+    await seedEvent({ inicioTipo: 'olas' })
+    await abrirConfiguracion()
+    expect(screen.getByRole('status')).toHaveTextContent('Salida única')
+
+    await guardarCambios()
+    expect((await db.eventos.get(1)).configuracion.inicioTipo).toBe('unico')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar ola' }))
+    expect(screen.getByRole('status')).toHaveTextContent('Por olas')
+    await guardarCambios()
+    expect((await db.eventos.get(1)).configuracion.inicioTipo).toBe('olas')
   })
 })

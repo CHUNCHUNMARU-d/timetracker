@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { puedeTransicionar, siguienteFase, esEditable, puedeRegistrarTiempos } from '../../src/utils/estado'
+import { puedeTransicionar, siguienteFase, esEditable, puedeRegistrarTiempos, tipoDeInicio } from '../../src/utils/estado'
 
 describe('puedeTransicionar', () => {
   const evPrep = { estado: 'preparacion', categorias: [{ id: 'c1', nombre: 'Cat' }] }
@@ -61,5 +61,16 @@ describe('helpers', () => {
     expect(puedeRegistrarTiempos({ estado: 'preparacion' })).toBe(false)
     expect(puedeRegistrarTiempos({ estado: 'activa' })).toBe(true)
     expect(puedeRegistrarTiempos({ estado: 'terminada' })).toBe(false)
+  })
+})
+
+describe('tipoDeInicio', () => {
+  it.each([
+    ['event without categorías → unico', undefined, 'unico'],
+    ['no categorías → unico', [], 'unico'],
+    ['categorías without olas → unico', [{ id: 'a', olas: [] }, { id: 'b' }], 'unico'],
+    ['one categoría with an ola → olas', [{ id: 'a', olas: [] }, { id: 'b', olas: [{ id: 'o1' }] }], 'olas'],
+  ])('%s', (_, categorias, esperado) => {
+    expect(tipoDeInicio(categorias)).toBe(esperado)
   })
 })
