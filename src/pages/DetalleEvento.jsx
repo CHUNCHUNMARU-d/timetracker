@@ -154,15 +154,17 @@ export default function DetalleEvento() {
               <p className="text-text-mid text-sm mt-1">{evento.lugar} · {evento.fecha}</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <a
+              <NeonButton
+                variant="ghost"
+                size="md"
+                as="a"
                 href={`/pantalla/${id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 min-h-[44px] bg-bg border border-border-hi hover:border-activa hover:text-activa text-text-mid font-display text-xs uppercase tracking-widest transition-colors focus-ring-activa"
               >
                 📺 Abrir Pantalla
                 <span className="opacity-60" aria-hidden="true">↗</span>
-              </a>
+              </NeonButton>
               {!terminada && (
                 <NeonButton
                   variant="primary"

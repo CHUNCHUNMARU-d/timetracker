@@ -145,3 +145,14 @@ describe('DetalleEvento — distancia de cada atleta', () => {
     expect(screen.getByRole('combobox', { name: 'Distancia *' })).toHaveDisplayValue('Sprint')
   })
 })
+
+describe('DetalleEvento — accesos', () => {
+  it('opens the Pantalla in a new tab', async () => {
+    await seedEvent()
+    renderDetalle()
+
+    const pantalla = await screen.findByRole('link', { name: /Abrir Pantalla/ })
+    expect(pantalla).toHaveAttribute('href', '/pantalla/1')
+    expect(pantalla).toHaveAttribute('target', '_blank')
+  })
+})

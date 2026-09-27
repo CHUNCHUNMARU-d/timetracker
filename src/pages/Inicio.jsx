@@ -106,16 +106,18 @@ export default function Inicio() {
 
                     {/* Actions column */}
                     <div className="flex flex-col items-end gap-2">
-                      <a
+                      <NeonButton
+                        variant="ghost"
+                        size="sm"
+                        as="a"
                         href={`/pantalla/${ev.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={e => e.stopPropagation()}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] bg-bg border border-border-hi hover:border-activa hover:text-activa text-text-mid font-display text-[11px] uppercase tracking-wider transition-colors focus-ring-activa"
                       >
                         📺 Pantalla
                         <span className="opacity-60" aria-hidden="true">↗</span>
-                      </a>
+                      </NeonButton>
                       <button
                         type="button"
                         onClick={(e) => eliminarEvento(e, ev.id)}
