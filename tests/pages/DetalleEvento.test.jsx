@@ -156,3 +156,37 @@ describe('DetalleEvento — accesos', () => {
     expect(pantalla).toHaveAttribute('target', '_blank')
   })
 })
+
+describe('DetalleEvento — ediciones sin guardar', () => {
+  it('keeps unsaved Configuración edits after adding an athlete', async () => {
+    await seedEvent()
+    await abrirConfiguracion()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nombre' }), { target: { value: 'M 30-39' } })
+
+    fireEvent.click(screen.getByText('Atletas'))
+    fireEvent.click(screen.getByText('+ Atleta'))
+    const modal = screen.getByRole('dialog')
+    const [dorsal, nombre, apellido] = within(modal).getAllByRole('textbox')
+    fireEvent.change(dorsal, { target: { value: '7' } })
+    fireEvent.change(nombre, { target: { value: 'Ana' } })
+    fireEvent.change(apellido, { target: { value: 'López' } })
+    fireEvent.click(within(modal).getByText('Guardar'))
+    await screen.findByRole('row', { name: /Ana López/ })
+
+    fireEvent.click(screen.getByText('Configuración'))
+    expect(screen.getByRole('textbox', { name: 'Nombre' })).toHaveValue('M 30-39')
+  })
+
+  it('drops unsaved edits when the race moves to Activa and shows what was saved', async () => {
+    await seedEvent()
+    await db.atletas.add({ eventoId: 1, dorsal: '7', nombre: 'Ana', apellido: 'López', distanciaId: 'd-1', status: 'activo' })
+    await abrirConfiguracion()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nombre' }), { target: { value: 'M 30-39' } })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Avanzar → Activa' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirmar' }))
+
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Nombre' })).toBeDisabled())
+    expect(screen.getByRole('textbox', { name: 'Nombre' })).toHaveValue('M 30-34')
+  })
+})

@@ -32,21 +32,26 @@ export default function DetalleEvento() {
   const editable = esEditable(evento)
   const terminada = esTerminada(evento)
 
-  async function cargar() {
-    const ev = await db.eventos.get(eventoId)
-    setEvento(ev)
-    const a = await db.atletas.where('eventoId').equals(eventoId).toArray()
-    setAtletas(a)
-  }
-
-  useEffect(() => { cargar() }, [eventoId])
-
+  // The first load fills the event, its editors and the athletes. Later
+  // reloads only refresh athletes, so unsaved Configuración edits survive.
   useEffect(() => {
-    if (evento) {
-      setCategorias(evento.categorias ?? [])
-      setDistancias(evento.distancias ?? [])
-    }
-  }, [evento])
+    let vigente = true
+    Promise.all([
+      db.eventos.get(eventoId),
+      db.atletas.where('eventoId').equals(eventoId).toArray(),
+    ]).then(([ev, a]) => {
+      if (!vigente) return
+      setEvento(ev)
+      setCategorias(ev?.categorias ?? [])
+      setDistancias(ev?.distancias ?? [])
+      setAtletas(a)
+    })
+    return () => { vigente = false }
+  }, [eventoId])
+
+  async function recargarAtletas() {
+    setAtletas(await db.atletas.where('eventoId').equals(eventoId).toArray())
+  }
 
   async function confirmarTransicion() {
     if (!transicion) return
@@ -54,6 +59,9 @@ export default function DetalleEvento() {
     if (!check.ok) return
     await db.eventos.update(eventoId, { estado: transicion.hasta })
     setEvento(p => ({ ...p, estado: transicion.hasta }))
+    // Configuración locks outside Preparación: drop edits that were never saved.
+    setCategorias(evento.categorias ?? [])
+    setDistancias(evento.distancias ?? [])
     setTransicion(null)
   }
 
@@ -79,7 +87,7 @@ export default function DetalleEvento() {
       return
     }
     setModalAtleta(null)
-    cargar()
+    recargarAtletas()
   }
 
   async function guardarConfig() {
@@ -243,7 +251,7 @@ export default function DetalleEvento() {
                   evento={evento}
                   categorias={evento.categorias ?? []}
                   distancias={evento.distancias ?? []}
-                  onImportado={() => { setMostrarCSV(false); cargar() }}
+                  onImportado={() => { setMostrarCSV(false); recargarAtletas() }}
                 />
               </div>
             )}
