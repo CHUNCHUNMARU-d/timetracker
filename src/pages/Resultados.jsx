@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { getResultados } from '../db'
 import { msAHora } from '../utils/tiempo'
 import { exportarResultadosPDF, exportarResultadosCompletoPDF } from '../utils/pdf'
+import { resultadosACSV } from '../utils/csv'
 import StatusBadge from '../components/StatusBadge'
 import PhaseBadge from '../components/ui/PhaseBadge'
 import NeonButton from '../components/ui/NeonButton'
@@ -46,6 +47,16 @@ export default function Resultados() {
     const a = document.createElement('a')
     a.href = url
     a.download = `resultados_${evento.nombre.replace(/\s+/g, '_')}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function exportarCSV(datos) {
+    const blob = new Blob([resultadosACSV(datos)], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `resultados_${evento.nombre.replace(/\s+/g, '_')}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -98,6 +109,9 @@ export default function Resultados() {
               </NeonButton>
               <NeonButton variant="ghost" size="md" onClick={() => exportarPDF(exportarResultadosPDF, filasFiltradas)}>
                 📄 PDF
+              </NeonButton>
+              <NeonButton variant="ghost" size="md" onClick={() => exportarCSV(filasFiltradas)}>
+                📊 CSV
               </NeonButton>
               <NeonButton variant="ghost" size="md" onClick={exportarJSON}>
                 📤 JSON
