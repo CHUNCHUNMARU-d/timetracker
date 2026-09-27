@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import Dexie from 'dexie'
 import { db } from '../../src/db'
@@ -27,7 +27,7 @@ function seedEvent({ inicioTipo = 'unico', estado = 'preparacion', distancias = 
   })
 }
 
-async function abrirConfiguracion() {
+function renderDetalle() {
   render(
     <MemoryRouter initialEntries={['/eventos/1']}>
       <Routes>
@@ -35,6 +35,10 @@ async function abrirConfiguracion() {
       </Routes>
     </MemoryRouter>,
   )
+}
+
+async function abrirConfiguracion() {
+  renderDetalle()
   fireEvent.click(await screen.findByText('Configuración'))
 }
 
@@ -120,5 +124,24 @@ describe('DetalleEvento — distancias en Configuración', () => {
 
     expect(screen.getByRole('textbox', { name: 'Distancia 1' })).toBeDisabled()
     expect(screen.queryByRole('button', { name: 'Agregar distancia' })).toBeNull()
+  })
+})
+
+describe('DetalleEvento — distancia de cada atleta', () => {
+  it("shows each athlete's distance in the table", async () => {
+    await seedEvent()
+    await db.atletas.add({ eventoId: 1, dorsal: '7', nombre: 'Ana', apellido: 'López', distanciaId: 'd-1', status: 'activo' })
+    renderDetalle()
+
+    const fila = await screen.findByRole('row', { name: /Ana López/ })
+    expect(within(fila).getByText('Sprint')).toBeInTheDocument()
+  })
+
+  it('offers the event distances in the athlete form', async () => {
+    await seedEvent()
+    renderDetalle()
+
+    fireEvent.click(await screen.findByText('+ Atleta'))
+    expect(screen.getByRole('combobox', { name: 'Distancia *' })).toHaveDisplayValue('Sprint')
   })
 })

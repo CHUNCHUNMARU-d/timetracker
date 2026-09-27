@@ -266,6 +266,7 @@ export default function DetalleEvento() {
                       <th scope="col" className="px-4 py-3">Nombre</th>
                       <th scope="col" className="px-4 py-3 hidden sm:table-cell">Categoría</th>
                       <th scope="col" className="px-4 py-3 hidden sm:table-cell">Ola</th>
+                      <th scope="col" className="px-4 py-3 hidden md:table-cell">Distancia</th>
                       <th scope="col" className="px-4 py-3">Estado</th>
                       <th scope="col" className="px-4 py-3 hidden md:table-cell">Email</th>
                       <th scope="col" className="px-4 py-3"></th>
@@ -275,6 +276,7 @@ export default function DetalleEvento() {
                     {atletasFiltrados.map(a => {
                       const cat = evento.categorias?.find(c => c.id === a.categoriaId)
                       const ola = cat?.olas?.find(o => o.id === a.olaId)
+                      const dist = evento.distancias?.find(d => d.id === a.distanciaId)
                       const status = a.status ?? 'activo'
                       return (
                         <tr key={a.id} className="border-t border-border hover:bg-elevated/50 text-text-mid">
@@ -285,6 +287,7 @@ export default function DetalleEvento() {
                           </td>
                           <td className="px-4 py-3 hidden sm:table-cell text-text-mid">{cat?.nombre ?? '—'}</td>
                           <td className="px-4 py-3 hidden sm:table-cell text-text-mid">{ola?.nombre ?? '—'}</td>
+                          <td className="px-4 py-3 hidden md:table-cell text-text-mid">{dist?.nombre ?? '—'}</td>
                           <td className="px-4 py-3">
                             <select
                               value={status}
@@ -365,6 +368,7 @@ export default function DetalleEvento() {
         <ModalAtleta
           atleta={modalAtleta}
           categorias={evento.categorias ?? []}
+          distancias={evento.distancias ?? []}
           onGuardar={guardarAtleta}
           onCerrar={() => setModalAtleta(null)}
         />
