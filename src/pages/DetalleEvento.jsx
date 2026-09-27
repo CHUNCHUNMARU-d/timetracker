@@ -82,7 +82,7 @@ export default function DetalleEvento() {
   }
 
   function agregarCategoria() {
-    setCategorias(p => [...p, { id: uid(), nombre: '', genero: 'M', edadMin: 0, edadMax: 99 }])
+    setCategorias(p => [...p, { id: uid(), nombre: '', genero: 'M', edadMin: null, edadMax: null }])
   }
   function actualizarCategoria(id, campo, valor) {
     setCategorias(p => p.map(c => c.id === id ? { ...c, [campo]: valor } : c))
@@ -394,17 +394,19 @@ export default function DetalleEvento() {
                     </select>
                     <input
                       type="number"
+                      placeholder="Edad mín"
                       className="bg-bg border border-border focus:border-activa px-2 py-2 text-text-hi text-sm focus:outline-none disabled:opacity-40"
                       disabled={!editable}
-                      value={c.edadMin}
-                      onChange={e => actualizarCategoria(c.id, 'edadMin', Number(e.target.value))}
+                      value={c.edadMin ?? ''}
+                      onChange={e => actualizarCategoria(c.id, 'edadMin', e.target.value === '' ? null : Number(e.target.value))}
                     />
                     <input
                       type="number"
+                      placeholder="Edad máx"
                       className="bg-bg border border-border focus:border-activa px-2 py-2 text-text-hi text-sm focus:outline-none disabled:opacity-40"
                       disabled={!editable}
-                      value={c.edadMax}
-                      onChange={e => actualizarCategoria(c.id, 'edadMax', Number(e.target.value))}
+                      value={c.edadMax ?? ''}
+                      onChange={e => actualizarCategoria(c.id, 'edadMax', e.target.value === '' ? null : Number(e.target.value))}
                     />
                     <button
                       onClick={() => eliminarCategoria(c.id)}

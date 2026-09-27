@@ -7,7 +7,7 @@ export default function ModalAtleta({ atleta, categorias, onGuardar, onCerrar })
     nombre: atleta.nombre ?? '',
     apellido: atleta.apellido ?? '',
     genero: atleta.genero ?? 'M',
-    añoNacimiento: atleta.añoNacimiento ?? '',
+    añoNacimiento: atleta.añoNacimiento || null,
     categoriaId: atleta.categoriaId ?? '',
     olaId: atleta.olaId ?? '',
     email: atleta.email ?? '',
@@ -57,7 +57,7 @@ export default function ModalAtleta({ atleta, categorias, onGuardar, onCerrar })
           </div>
           <div>
             <label className={labelCls}>Año de nacimiento</label>
-            <input type="number" className={inputCls} value={form.añoNacimiento} onChange={e => set('añoNacimiento', Number(e.target.value))} />
+            <input type="number" className={inputCls} value={form.añoNacimiento ?? ''} onChange={e => set('añoNacimiento', e.target.value === '' ? null : Number(e.target.value))} />
           </div>
           <div>
             <label className={labelCls}>Categoría</label>
