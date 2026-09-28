@@ -137,3 +137,31 @@ describe('Scan — cross-tab refresh', () => {
     await waitFor(() => expect(screen.getByText(/Carrera en pausa/i)).toBeInTheDocument())
   })
 })
+
+describe('Scan — olas', () => {
+  it('warns instead of timing a dorsal whose ola has not started', async () => {
+    await db.eventos.add({
+      id: 1,
+      nombre: 'Olas Test',
+      fecha: '2026-05-21',
+      lugar: 'CDMX',
+      tipo: 'Triatlón',
+      estado: 'activa',
+      configuracion: { inicioTipo: 'olas', horaInicio: 1_000_000, totalPausado: 0, pausadoEn: null, olaActiva: { categoriaId: 'cat-A', olaId: 'ola-1' } },
+      categorias: [
+        { id: 'cat-A', nombre: 'Élite', olas: [{ id: 'ola-1', nombre: 'Ola 1', horaInicio: 1_000_000 }] },
+        { id: 'cat-B', nombre: 'Sub-23', olas: [{ id: 'ola-2', nombre: 'Ola 2' }] },
+      ],
+      distancias: [],
+    })
+    await db.atletas.add({ eventoId: 1, dorsal: '51', nombre: 'M', apellido: 'N', categoriaId: 'cat-B', olaId: 'ola-2', status: 'activo' })
+
+    renderScan()
+    const input = await waitFor(() => getBibInput())
+    fireEvent.change(input, { target: { value: '51' } })
+    fireEvent.click(screen.getByText(/Registrar llegada/))
+
+    expect(await screen.findByText(/Ola 2 aún no inicia/)).toBeInTheDocument()
+    expect(await db.tiempos.count()).toBe(0)
+  })
+})

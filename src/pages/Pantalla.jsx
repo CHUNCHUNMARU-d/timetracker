@@ -16,21 +16,22 @@ export default function Pantalla() {
 
   useEffect(() => { db.eventos.toArray().then(setEventos) }, [])
 
-  async function cargarResultados(eid) {
-    const datos = await getResultados(eid)
-    if (!datos.evento) return
-    setEvento(datos.evento)
-    setFilas(datos.filas)
-  }
-
+  // One loader for the first render, the 5 s poll and live updates from
+  // other tabs.
   useEffect(() => {
     if (!eventoId) return
-    cargarResultados(eventoId)
-    const interval = setInterval(() => cargarResultados(eventoId), 5000)
-    const unsub = escucharActualizaciones(({ eventoId: eid }) => {
-      if (eid === eventoId) cargarResultados(eventoId)
+    let vigente = true
+    const cargar = () => getResultados(eventoId).then(datos => {
+      if (!vigente || !datos.evento) return
+      setEvento(datos.evento)
+      setFilas(datos.filas)
     })
-    return () => { clearInterval(interval); unsub() }
+    cargar()
+    const interval = setInterval(cargar, 5000)
+    const unsub = escucharActualizaciones(({ eventoId: eid }) => {
+      if (eid === eventoId) cargar()
+    })
+    return () => { vigente = false; clearInterval(interval); unsub() }
   }, [eventoId])
 
   function importarJSON(e) {

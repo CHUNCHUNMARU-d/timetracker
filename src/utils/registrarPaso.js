@@ -8,7 +8,12 @@ import { emitirActualizacion } from './sync'
 // Result is a discriminated union:
 //   { ok: true, registro, atleta }
 //   { ok: false, code: 'TERMINADA'|'VACIO'|'PAUSADA'|'NO_INICIADA'|'DUPLICADO'
-//                     |'CATEGORIA_INCORRECTA'|'WRITE_FAILED', ... }
+//                     |'OLA_NO_INICIADA'|'WRITE_FAILED', ... }
+//
+// In wave mode each finisher is timed from their own ola, so several olas can
+// be on course at once. Athletes without an ola in a category with only one
+// ola use that one; anything else (no ola, unregistered dorsal) is timed from
+// the race start, i.e. the first ola.
 //
 // On success it writes one row to db.tiempos and emits one BroadcastChannel
 // message via emitirActualizacion. On any failure it does neither.
@@ -18,7 +23,6 @@ export async function registrarPaso({
   evento,
   atletas,
   tiempos,
-  olaActiva,
   horaInicioGlobal,
   totalPausado = 0,
   pausadoEn,
@@ -31,8 +35,7 @@ export async function registrarPaso({
 
   if (pausadoEn) return { ok: false, code: 'PAUSADA' }
 
-  const horaStart = resolverHoraInicio({ esOlas, olaActiva, evento, horaInicioGlobal })
-  if (!horaStart) return { ok: false, code: 'NO_INICIADA' }
+  if (!horaInicioGlobal) return { ok: false, code: 'NO_INICIADA' }
 
   const yaRegistrado = tiempos.find(t => t.dorsal === d)
   if (yaRegistrado) {
@@ -42,15 +45,9 @@ export async function registrarPaso({
 
   const atletaEncontrado = atletas.find(a => a.dorsal === d) ?? null
 
-  if (esOlas && olaActiva && atletaEncontrado && atletaEncontrado.categoriaId !== olaActiva.categoriaId) {
-    const catCorrecta = evento.categorias?.find(c => c.id === atletaEncontrado.categoriaId)
-    return {
-      ok: false,
-      code: 'CATEGORIA_INCORRECTA',
-      dorsal: d,
-      categoriaCorrecta: catCorrecta?.nombre ?? 'otra',
-    }
-  }
+  const ola = esOlas && atletaEncontrado ? olaDelAtleta(atletaEncontrado, evento) : null
+  if (ola && !ola.horaInicio) return { ok: false, code: 'OLA_NO_INICIADA', dorsal: d, ola: ola.nombre }
+  const horaStart = ola?.horaInicio ?? horaInicioGlobal
 
   const horaLlegada = ahora()
   const tiempoNeto = horaLlegada - horaStart - (totalPausado ?? 0)
@@ -61,7 +58,7 @@ export async function registrarPaso({
     dorsal: d,
     horaLlegada,
     tiempoNeto,
-    olaId: olaActiva?.olaId ?? null,
+    olaId: ola?.id ?? null,
     segmento: 'finish',
     editado: false,
     notaEdicion: '',
@@ -78,11 +75,9 @@ export async function registrarPaso({
   return { ok: true, registro: { ...registro, id: newId }, atleta: atletaEncontrado }
 }
 
-function resolverHoraInicio({ esOlas, olaActiva, evento, horaInicioGlobal }) {
-  if (esOlas && olaActiva) {
-    const cat = evento?.categorias?.find(c => c.id === olaActiva.categoriaId)
-    const ola = cat?.olas?.find(o => o.id === olaActiva.olaId)
-    return ola?.horaInicio ?? horaInicioGlobal
-  }
-  return horaInicioGlobal
+function olaDelAtleta(atleta, evento) {
+  const propia = evento?.categorias?.flatMap(c => c.olas ?? []).find(o => o.id === atleta.olaId)
+  if (propia) return propia
+  const olasCategoria = evento?.categorias?.find(c => c.id === atleta.categoriaId)?.olas ?? []
+  return olasCategoria.length === 1 ? olasCategoria[0] : null
 }

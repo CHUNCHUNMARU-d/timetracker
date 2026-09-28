@@ -1,29 +1,34 @@
-// Stadium Scoreboard primary action.
-// Flat surface + 1px accent border + uppercase display font.
-// Hover lifts to accent glow. No gradients, no rounded blobs.
+// Stadium Scoreboard action button, uppercase display font.
+// Primary is a solid neon fill with dark text (docs/DESIGN.md); the other
+// variants are a flat surface with a 1px accent border. Hover lifts to
+// accent glow. No gradients, no rounded blobs.
 
 const VARIANTS = {
   primary: {
-    text: 'text-activa',
+    bg: 'bg-activa',
+    text: 'text-bg',
     border: 'border-activa',
     hover: 'hover:shadow-glow-activa',
     ring: 'focus-ring-activa',
   },
   prep: {
+    bg: 'bg-surface',
     text: 'text-prep',
     border: 'border-prep',
     hover: 'hover:shadow-glow-prep',
     ring: 'focus-ring-prep',
   },
   danger: {
+    bg: 'bg-surface',
     text: 'text-danger',
     border: 'border-danger',
     hover: 'hover:shadow-glow-danger',
     ring: 'focus-ring-danger',
   },
   ghost: {
-    text: 'text-text-mid hover:text-text-hi',
-    border: 'border-border hover:border-border-hi',
+    bg: 'bg-surface',
+    text: 'text-text-hi hover:text-activa',
+    border: 'border-border-hi hover:border-activa',
     hover: '',
     ring: 'focus-ring-activa',
   },
@@ -49,7 +54,7 @@ export default function NeonButton({
   const Tag = as
   return (
     <Tag
-      className={`inline-flex items-center justify-center gap-2 font-display font-bold uppercase tracking-wider bg-surface border ${v.border} ${v.text} ${v.hover} ${v.ring} ${sz} transition-shadow disabled:opacity-40 disabled:cursor-not-allowed ${className}`}
+      className={`inline-flex items-center justify-center gap-2 font-display font-bold uppercase tracking-wider ${v.bg} border ${v.border} ${v.text} ${v.hover} ${v.ring} ${sz} transition-shadow disabled:opacity-40 disabled:cursor-not-allowed ${className}`}
       {...rest}
     >
       {children}

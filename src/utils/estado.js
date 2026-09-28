@@ -88,3 +88,9 @@ export function siguienteFase(estado) {
   if (idx === -1 || idx === FASES.length - 1) return null
   return FASES[idx + 1]
 }
+
+// Start type follows the olas: any categoría with an ola starts by olas,
+// otherwise everyone starts together. Replaces the old manual selector.
+export function tipoDeInicio(categorias) {
+  return categorias?.some(c => (c.olas ?? []).length > 0) ? 'olas' : 'unico'
+}

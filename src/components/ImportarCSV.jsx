@@ -2,69 +2,90 @@ import { useState, useRef } from 'react'
 import Papa from 'papaparse'
 import { db } from '../db'
 import { esEditable } from '../utils/estado'
+import { normalizarEncabezado, decodificarCSV, emparejarPorNombre } from '../utils/csv'
 import NeonButton from './ui/NeonButton'
 
 const COLUMNAS = ['dorsal', 'nombre', 'apellido', 'genero', 'año_nacimiento', 'email', 'telefono']
 
+// Ola names like "Ola 1" repeat across categories, so olas are mapped per
+// (categoría, ola) pair as written in the CSV.
+const clavePar = (cat, ola) => JSON.stringify([cat ?? '', ola])
+
 export default function ImportarCSV({ eventoId, evento, categorias, distancias = [], onImportado }) {
   const bloqueado = evento && !esEditable(evento)
   const todasLasOlas = categorias.flatMap(c =>
-    (c.olas ?? []).map(o => ({ id: o.id, label: `${c.nombre} / ${o.nombre}`, categoriaId: c.id }))
+    (c.olas ?? []).map(o => ({ id: o.id, nombre: o.nombre, label: `${c.nombre} / ${o.nombre}`, categoriaId: c.id }))
   )
   const [preview, setPreview] = useState(null)
   const [mapeoCat, setMapeoCat] = useState({})
-  const [mapeoOla, setMapeoOla] = useState({})
+  const [mapeoOla, setMapeoOla] = useState({}) // clavePar → ola elegida a mano
   const [distanciaId, setDistanciaId] = useState(distancias[0]?.id ?? '')
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
   const inputRef = useRef()
 
-  function procesarArchivo(file) {
+  async function procesarArchivo(file) {
     setError('')
-    Papa.parse(file, {
+    let texto
+    try {
+      texto = decodificarCSV(await file.arrayBuffer())
+    } catch {
+      setError('Error al leer el archivo CSV')
+      return
+    }
+    const { data } = Papa.parse(texto, {
       header: true,
-      skipEmptyLines: true,
-      complete: async ({ data }) => {
-        if (!data.length) { setError('El archivo está vacío'); return }
-        const keys = Object.keys(data[0])
-        const tieneCat = keys.includes('categoria')
-        const tieneOla = keys.includes('ola')
-
-        let existentes = new Set()
-        try {
-          const enDb = await db.atletas.where('eventoId').equals(eventoId).toArray()
-          existentes = new Set(enDb.map(a => String(a.dorsal).trim()))
-        } catch (err) {
-          setError(`No se pudo verificar duplicados: ${err.message ?? err}`)
-          return
-        }
-        const vistos = new Set()
-        const filas = data.map(row => {
-          const d = String(row.dorsal ?? '').trim()
-          let dup = null
-          if (!d) dup = 'sin-dorsal'
-          else if (existentes.has(d)) dup = 'db'
-          else if (vistos.has(d)) dup = 'csv'
-          if (d) vistos.add(d)
-          return { ...row, __duplicado: dup }
-        })
-
-        setPreview({ filas, tieneCat, tieneOla })
-        if (tieneCat) {
-          const uniq = [...new Set(data.map(r => r.categoria).filter(Boolean))]
-          const map = {}
-          uniq.forEach(u => { map[u] = categorias[0]?.id ?? '' })
-          setMapeoCat(map)
-        }
-        if (tieneOla) {
-          const uniq = [...new Set(data.map(r => r.ola).filter(Boolean))]
-          const map = {}
-          uniq.forEach(u => { map[u] = todasLasOlas[0]?.id ?? '' })
-          setMapeoOla(map)
-        }
-      },
-      error: () => setError('Error al leer el archivo CSV'),
+      skipEmptyLines: 'greedy',
+      transformHeader: normalizarEncabezado,
     })
+    if (!data.length) { setError('El archivo está vacío'); return }
+    const keys = Object.keys(data[0])
+    const tieneCat = keys.includes('categoria')
+    const tieneOla = keys.includes('ola')
+
+    let existentes = new Set()
+    try {
+      const enDb = await db.atletas.where('eventoId').equals(eventoId).toArray()
+      existentes = new Set(enDb.map(a => String(a.dorsal).trim()))
+    } catch (err) {
+      setError(`No se pudo verificar duplicados: ${err.message ?? err}`)
+      return
+    }
+    const vistos = new Set()
+    const filas = data.map(row => {
+      const d = String(row.dorsal ?? '').trim()
+      let dup = null
+      if (!d) dup = 'sin-dorsal'
+      else if (existentes.has(d)) dup = 'db'
+      else if (vistos.has(d)) dup = 'csv'
+      if (d) vistos.add(d)
+      return { ...row, __duplicado: dup }
+    })
+
+    setPreview({ filas, tieneCat, tieneOla })
+    if (tieneCat) {
+      const uniq = [...new Set(data.map(r => r.categoria).filter(Boolean))]
+      const map = {}
+      uniq.forEach(u => { map[u] = emparejarPorNombre(u, categorias) })
+      setMapeoCat(map)
+    }
+    setMapeoOla({})
+  }
+
+  // Olas selectable for a CSV pair: those of its mapped category, or every
+  // ola when the CSV has no categoria column.
+  function opcionesOla(csvCat) {
+    if (!preview.tieneCat) return todasLasOlas
+    return todasLasOlas.filter(o => o.categoriaId === mapeoCat[csvCat])
+  }
+
+  // Hand-picked ola while it still fits the pair's category, else the one
+  // with the same name.
+  function olaPara(csvCat, csvOla) {
+    const opciones = opcionesOla(csvCat)
+    const elegida = mapeoOla[clavePar(csvCat, csvOla)]
+    if (elegida === '' || opciones.some(o => o.id === elegida)) return elegida
+    return emparejarPorNombre(csvOla, opciones)
   }
 
   function onDrop(e) {
@@ -78,20 +99,26 @@ export default function ImportarCSV({ eventoId, evento, categorias, distancias =
     if (!preview) return
     setCargando(true)
     const limpias = preview.filas.filter(r => !r.__duplicado)
-    const atletas = limpias.map(row => ({
-      eventoId,
-      dorsal: String(row.dorsal ?? '').trim(),
-      nombre: row.nombre?.trim() ?? '',
-      apellido: row.apellido?.trim() ?? '',
-      genero: row.genero?.trim().toUpperCase() ?? 'M',
-      añoNacimiento: Number(row.año_nacimiento) || 0,
-      categoriaId: preview.tieneCat ? (mapeoCat[row.categoria] ?? '') : '',
-      olaId: preview.tieneOla ? (mapeoOla[row.ola] ?? '') : '',
-      distanciaId,
-      status: 'activo',
-      email: row.email?.trim() ?? '',
-      telefono: row.telefono?.trim() ?? '',
-    }))
+    const atletas = limpias.map(row => {
+      const olaId = preview.tieneOla && row.ola ? olaPara(row.categoria, row.ola) : ''
+      return {
+        eventoId,
+        dorsal: String(row.dorsal ?? '').trim(),
+        nombre: row.nombre?.trim() ?? '',
+        apellido: row.apellido?.trim() ?? '',
+        genero: row.genero?.trim().toUpperCase() ?? 'M',
+        añoNacimiento: Number(row.año_nacimiento) || null,
+        // Without a categoria column the ola implies its category.
+        categoriaId: preview.tieneCat
+          ? (mapeoCat[row.categoria] ?? '')
+          : (todasLasOlas.find(o => o.id === olaId)?.categoriaId ?? ''),
+        olaId,
+        distanciaId,
+        status: 'activo',
+        email: row.email?.trim() ?? '',
+        telefono: row.telefono?.trim() ?? '',
+      }
+    })
     try {
       await db.atletas.bulkAdd(atletas)
     } catch (err) {
@@ -114,6 +141,9 @@ export default function ImportarCSV({ eventoId, evento, categorias, distancias =
 
   const numDup = preview?.filas.filter(r => r.__duplicado).length ?? 0
   const numImportables = preview ? preview.filas.length - numDup : 0
+  const paresOla = preview?.tieneOla
+    ? [...new Map(preview.filas.filter(r => r.ola).map(r => [clavePar(r.categoria, r.ola), [r.categoria ?? '', r.ola]]))]
+    : []
   const inputCls = 'w-full bg-bg border border-border focus:border-activa px-3 py-2 text-text-hi text-sm focus:outline-none transition-colors'
 
   if (preview) {
@@ -147,7 +177,9 @@ export default function ImportarCSV({ eventoId, evento, categorias, distancias =
             </p>
             {Object.keys(mapeoCat).map(csvCat => (
               <div key={csvCat} className="flex items-center gap-3">
-                <span className="text-sm text-text-mid w-32 shrink-0">{csvCat}</span>
+                <span className={`text-sm w-32 shrink-0 ${mapeoCat[csvCat] ? 'text-text-mid' : 'text-prep'}`}>
+                  {mapeoCat[csvCat] ? csvCat : `⚠ ${csvCat}`}
+                </span>
                 <select
                   className={inputCls}
                   value={mapeoCat[csvCat]}
@@ -161,24 +193,30 @@ export default function ImportarCSV({ eventoId, evento, categorias, distancias =
           </div>
         )}
 
-        {preview.tieneOla && Object.keys(mapeoOla).length > 0 && (
+        {paresOla.length > 0 && (
           <div className="bg-bg p-4 border border-border space-y-2">
             <p className="text-[10px] font-display uppercase tracking-widest text-text-lo mb-2">
               Mapear olas del CSV
             </p>
-            {Object.keys(mapeoOla).map(csvOla => (
-              <div key={csvOla} className="flex items-center gap-3">
-                <span className="text-sm text-text-mid w-32 shrink-0">{csvOla}</span>
-                <select
-                  className={inputCls}
-                  value={mapeoOla[csvOla]}
-                  onChange={e => setMapeoOla(p => ({ ...p, [csvOla]: e.target.value }))}
-                >
-                  <option value="">Sin ola</option>
-                  {todasLasOlas.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-                </select>
-              </div>
-            ))}
+            {paresOla.map(([clave, [csvCat, csvOla]]) => {
+              const olaId = olaPara(csvCat, csvOla)
+              const etiqueta = csvCat ? `${csvCat} / ${csvOla}` : csvOla
+              return (
+                <div key={clave} className="flex items-center gap-3">
+                  <span className={`text-sm w-32 shrink-0 ${olaId ? 'text-text-mid' : 'text-prep'}`}>
+                    {olaId ? etiqueta : `⚠ ${etiqueta}`}
+                  </span>
+                  <select
+                    className={inputCls}
+                    value={olaId}
+                    onChange={e => setMapeoOla(p => ({ ...p, [clave]: e.target.value }))}
+                  >
+                    <option value="">Sin ola</option>
+                    {opcionesOla(csvCat).map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                  </select>
+                </div>
+              )
+            })}
           </div>
         )}
 
@@ -239,6 +277,9 @@ export default function ImportarCSV({ eventoId, evento, categorias, distancias =
         </p>
         <p className="text-text-lo text-[10px] mt-3 font-mono uppercase tracking-wider">
           Columnas: dorsal, nombre, apellido, genero, año_nacimiento, categoria, ola, email, telefono
+        </p>
+        <p className="text-text-lo text-[10px] mt-1 font-mono uppercase tracking-wider">
+          Mayúsculas y acentos dan igual · separador , o ;
         </p>
         <input
           ref={inputRef}
