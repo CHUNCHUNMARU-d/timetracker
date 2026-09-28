@@ -21,11 +21,5 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
-    rules: {
-      // Flags the mount-time `useEffect(() => { cargar() }, [id])` data loads in
-      // DetalleEvento/Pantalla/Resultados. Real smell, but reworking that flow is
-      // its own task — warn so it stays visible without blocking CI.
-      'react-hooks/set-state-in-effect': 'warn',
-    },
   },
 ])

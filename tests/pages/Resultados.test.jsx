@@ -51,6 +51,58 @@ function capturarDescarga() {
   return descarga
 }
 
+function renderResultados() {
+  render(
+    <MemoryRouter initialEntries={['/eventos/1/resultados']}>
+      <Routes>
+        <Route path="/eventos/:id/resultados" element={<Resultados />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
+
+describe('Resultados — controles', () => {
+  it('opens the Pantalla in a new tab', async () => {
+    await seed()
+    renderResultados()
+
+    const pantalla = await screen.findByRole('link', { name: /Pantalla/ })
+    expect(pantalla).toHaveAttribute('href', '/pantalla/1')
+    expect(pantalla).toHaveAttribute('target', '_blank')
+  })
+
+  it('↻ Actualizar re-reads the results', async () => {
+    await seed()
+    renderResultados()
+    await screen.findByText('Ana López')
+
+    await db.atletas.add({ id: 12, eventoId: 1, dorsal: '12', nombre: 'Caro', apellido: 'Díaz', genero: 'F', categoriaId: 'cat-F', olaId: '', distanciaId: 'd-1', status: 'activo' })
+    await db.tiempos.add({ eventoId: 1, atletaId: 12, dorsal: '12', horaLlegada: 3_000_000, tiempoNeto: 2_000_000, segmento: 'finish' })
+    fireEvent.click(screen.getByRole('button', { name: '↻ Actualizar' }))
+
+    expect(await screen.findByText('Caro Díaz')).toBeInTheDocument()
+  })
+
+  it('filters rows with the labelled Categoría select', async () => {
+    await seed()
+    renderResultados()
+    await screen.findByText('Ana López')
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Categoría' }), { target: { value: 'cat-F' } })
+    expect(screen.getByText('Ana López')).toBeInTheDocument()
+    expect(screen.queryByText('Beto Cruz')).toBeNull()
+  })
+
+  it('without olas there is no ola filter and no Ola column', async () => {
+    await seed()
+    renderResultados()
+    await screen.findByText('Ana López')
+
+    expect(screen.queryByDisplayValue('Todas las olas')).toBeNull()
+    expect(screen.queryByRole('columnheader', { name: 'Ola' })).toBeNull()
+  })
+})
+
 describe('Resultados — exportar CSV', () => {
   it('downloads the rows on screen as a UTF-8 CSV file', async () => {
     await seed()

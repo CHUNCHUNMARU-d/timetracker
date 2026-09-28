@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import Dexie from 'dexie'
 import { db } from '../../src/db'
@@ -13,21 +13,21 @@ async function reset() {
 
 beforeEach(reset)
 
-function seedEvent() {
+function seedEvent({ inicioTipo = 'unico', estado = 'preparacion', distancias = [{ id: 'd-1', nombre: 'Sprint' }] } = {}) {
   return db.eventos.add({
     id: 1,
     nombre: 'Tri Test',
     fecha: '2026-10-04',
     lugar: 'CDMX',
     tipo: 'triatlón',
-    estado: 'preparacion',
-    configuracion: { inicioTipo: 'unico', horaInicio: null },
+    estado,
+    configuracion: { inicioTipo, horaInicio: null },
     categorias: [{ id: 'cat-A', nombre: 'M 30-34', genero: 'M', edadMin: 30, edadMax: 34, olas: [] }],
-    distancias: [{ id: 'd-1', nombre: 'Sprint' }],
+    distancias,
   })
 }
 
-async function abrirConfiguracion() {
+function renderDetalle() {
   render(
     <MemoryRouter initialEntries={['/eventos/1']}>
       <Routes>
@@ -35,7 +35,18 @@ async function abrirConfiguracion() {
       </Routes>
     </MemoryRouter>,
   )
+}
+
+async function abrirConfiguracion() {
+  renderDetalle()
   fireEvent.click(await screen.findByText('Configuración'))
+}
+
+// Clicks Guardar cambios and waits until the page shows it saved (the button
+// reads "Guardando…" meanwhile).
+async function guardarCambios() {
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+  await screen.findByRole('button', { name: 'Guardar cambios' })
 }
 
 describe('DetalleEvento — edades de categoría', () => {
@@ -58,10 +69,124 @@ describe('DetalleEvento — edades de categoría', () => {
     await seedEvent()
     await abrirConfiguracion()
 
-    fireEvent.click(screen.getByText('+ Categoría'))
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar categoría' }))
     const edades = screen.getAllByRole('spinbutton')
     expect(edades).toHaveLength(4)
     expect(edades[2].value).toBe('')
     expect(edades[3].value).toBe('')
+  })
+})
+
+describe('DetalleEvento — tipo de inicio automático', () => {
+  it('saving Configuración stores the start type the olas imply', async () => {
+    // Stored "olas" with no olas at all: the old trap that left Timing without a start button.
+    await seedEvent({ inicioTipo: 'olas' })
+    await abrirConfiguracion()
+    expect(screen.getByRole('status')).toHaveTextContent('Salida única')
+
+    await guardarCambios()
+    expect((await db.eventos.get(1)).configuracion.inicioTipo).toBe('unico')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar ola' }))
+    expect(screen.getByRole('status')).toHaveTextContent('Por olas')
+    await guardarCambios()
+    expect((await db.eventos.get(1)).configuracion.inicioTipo).toBe('olas')
+  })
+})
+
+describe('DetalleEvento — distancias en Configuración', () => {
+  it('renames and adds distances, saved with Guardar cambios', async () => {
+    await seedEvent()
+    await abrirConfiguracion()
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Distancia 1' }), { target: { value: 'Sprint 750 m' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar distancia' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Distancia 2' }), { target: { value: 'Olímpico' } })
+    await guardarCambios()
+
+    const ev = await db.eventos.get(1)
+    expect(ev.distancias.map(d => d.nombre)).toEqual(['Sprint 750 m', 'Olímpico'])
+  })
+
+  it('does not let a distance that athletes run be removed', async () => {
+    await seedEvent({ distancias: [{ id: 'd-1', nombre: 'Sprint' }, { id: 'd-2', nombre: 'Olímpico' }] })
+    await db.atletas.add({ eventoId: 1, dorsal: '7', nombre: 'Ana', apellido: 'López', distanciaId: 'd-1', status: 'activo' })
+    await abrirConfiguracion()
+
+    const [sprint, olimpico] = screen.getAllByRole('button', { name: 'Eliminar distancia' })
+    expect(sprint).toBeDisabled()
+    expect(olimpico).toBeEnabled()
+  })
+
+  it('locks distances once the race is active', async () => {
+    await seedEvent({ estado: 'activa' })
+    await abrirConfiguracion()
+
+    expect(screen.getByRole('textbox', { name: 'Distancia 1' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Agregar distancia' })).toBeNull()
+  })
+})
+
+describe('DetalleEvento — distancia de cada atleta', () => {
+  it("shows each athlete's distance in the table", async () => {
+    await seedEvent()
+    await db.atletas.add({ eventoId: 1, dorsal: '7', nombre: 'Ana', apellido: 'López', distanciaId: 'd-1', status: 'activo' })
+    renderDetalle()
+
+    const fila = await screen.findByRole('row', { name: /Ana López/ })
+    expect(within(fila).getByText('Sprint')).toBeInTheDocument()
+  })
+
+  it('offers the event distances in the athlete form', async () => {
+    await seedEvent()
+    renderDetalle()
+
+    fireEvent.click(await screen.findByText('+ Atleta'))
+    expect(screen.getByRole('combobox', { name: 'Distancia *' })).toHaveDisplayValue('Sprint')
+  })
+})
+
+describe('DetalleEvento — accesos', () => {
+  it('opens the Pantalla in a new tab', async () => {
+    await seedEvent()
+    renderDetalle()
+
+    const pantalla = await screen.findByRole('link', { name: /Abrir Pantalla/ })
+    expect(pantalla).toHaveAttribute('href', '/pantalla/1')
+    expect(pantalla).toHaveAttribute('target', '_blank')
+  })
+})
+
+describe('DetalleEvento — ediciones sin guardar', () => {
+  it('keeps unsaved Configuración edits after adding an athlete', async () => {
+    await seedEvent()
+    await abrirConfiguracion()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nombre' }), { target: { value: 'M 30-39' } })
+
+    fireEvent.click(screen.getByText('Atletas'))
+    fireEvent.click(screen.getByText('+ Atleta'))
+    const modal = screen.getByRole('dialog')
+    const [dorsal, nombre, apellido] = within(modal).getAllByRole('textbox')
+    fireEvent.change(dorsal, { target: { value: '7' } })
+    fireEvent.change(nombre, { target: { value: 'Ana' } })
+    fireEvent.change(apellido, { target: { value: 'López' } })
+    fireEvent.click(within(modal).getByText('Guardar'))
+    await screen.findByRole('row', { name: /Ana López/ })
+
+    fireEvent.click(screen.getByText('Configuración'))
+    expect(screen.getByRole('textbox', { name: 'Nombre' })).toHaveValue('M 30-39')
+  })
+
+  it('drops unsaved edits when the race moves to Activa and shows what was saved', async () => {
+    await seedEvent()
+    await db.atletas.add({ eventoId: 1, dorsal: '7', nombre: 'Ana', apellido: 'López', distanciaId: 'd-1', status: 'activo' })
+    await abrirConfiguracion()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nombre' }), { target: { value: 'M 30-39' } })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Avanzar → Activa' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirmar' }))
+
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Nombre' })).toBeDisabled())
+    expect(screen.getByRole('textbox', { name: 'Nombre' })).toHaveValue('M 30-34')
   })
 })

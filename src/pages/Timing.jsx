@@ -179,21 +179,7 @@ export default function Timing() {
     const nuevoActiva = { categoriaId, olaId }
     const cat = evento.categorias?.find(c => c.id === categoriaId)
     const ola = cat?.olas?.find(o => o.id === olaId)
-
-    if (ola?.horaInicio) {
-      try {
-        await db.eventos.update(eventoId, {
-          configuracion: { ...evento.configuracion, olaActiva: nuevoActiva },
-        })
-      } catch (err) {
-        showFlash({ error: `No se pudo cambiar ola: ${err.message ?? err}` }, 4000)
-        return
-      }
-      setOlaActiva(nuevoActiva)
-      setEvento(p => ({ ...p, configuracion: { ...p.configuracion, olaActiva: nuevoActiva } }))
-      inputRef.current?.focus()
-      return
-    }
+    if (ola?.horaInicio) return // already running; restarting would change its athletes' times
 
     // First ola start — gate the phase transition too
     if (evento.estado === 'preparacion') {
@@ -234,7 +220,6 @@ export default function Timing() {
       evento,
       atletas,
       tiempos,
-      olaActiva,
       horaInicioGlobal,
       totalPausado,
       pausadoEn,
@@ -262,8 +247,8 @@ export default function Timing() {
       case 'DUPLICADO':
         showFlash({ error: `Dorsal ${res.dorsal} ya registrado (${res.atleta?.nombre ?? ''})` })
         break
-      case 'CATEGORIA_INCORRECTA':
-        showFlash({ error: `Dorsal ${res.dorsal} es de categoría "${res.categoriaCorrecta}"` }, 3000)
+      case 'OLA_NO_INICIADA':
+        showFlash({ error: `${res.ola} aún no inicia (dorsal ${res.dorsal})` }, 3000)
         break
       case 'WRITE_FAILED':
         showFlash({ error: `No se pudo guardar: ${res.message}` }, 4000)
@@ -317,24 +302,14 @@ export default function Timing() {
         <PhaseBadge estado={evento.estado} />
         <div className="flex items-center gap-2 shrink-0">
           {!terminada && (
-            <a
-              href={`/eventos/${id}/scan`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] bg-bg border border-border-hi hover:border-activa hover:text-activa text-text-mid font-display text-[11px] uppercase tracking-widest transition-colors focus-ring-activa"
-            >
+            <NeonButton variant="ghost" size="sm" as="a" href={`/eventos/${id}/scan`} target="_blank" rel="noopener noreferrer">
               🎯 <span className="hidden sm:inline">Escaneo</span>
-            </a>
+            </NeonButton>
           )}
-          <a
-            href={`/pantalla/${id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] bg-bg border border-border-hi hover:border-activa hover:text-activa text-text-mid font-display text-[11px] uppercase tracking-widest transition-colors focus-ring-activa"
-          >
+          <NeonButton variant="ghost" size="sm" as="a" href={`/pantalla/${id}`} target="_blank" rel="noopener noreferrer">
             📺 <span className="hidden sm:inline">Pantalla</span>
             <span className="font-mono text-[10px] opacity-60">({tiempos.length})</span>
-          </a>
+          </NeonButton>
         </div>
       </header>
 
@@ -405,25 +380,23 @@ export default function Timing() {
               <div className="w-full max-w-lg space-y-4">
                 {evento.categorias?.filter(c => (c.olas ?? []).length > 0).map(cat => (
                   <div key={cat.id}>
-                    <p className="text-text-lo text-[10px] mb-2 uppercase tracking-[0.3em] font-display">{cat.nombre}</p>
+                    <p className="text-text-mid text-xs mb-2 uppercase tracking-[0.3em] font-display">{cat.nombre}</p>
                     <div className="grid grid-cols-2 gap-2">
                       {cat.olas.map(ola => {
                         const iniciada = !!ola.horaInicio
-                        const activa = olaActiva?.olaId === ola.id
-                        const cls = activa
-                          ? 'border-activa text-activa glow-activa'
-                          : iniciada
-                            ? 'border-border text-text-mid hover:border-border-hi'
-                            : 'border-activa/60 text-activa hover:border-activa'
+                        const cls = iniciada
+                          ? 'bg-surface border-activa text-activa cursor-default'
+                          : 'bg-activa border-activa text-bg hover:shadow-glow-activa'
                         return (
                           <button
                             key={ola.id}
                             onClick={() => iniciarOla(cat.id, ola.id)}
-                            className={`py-3 px-4 border font-display uppercase tracking-widest text-xs transition-colors ${cls}`}
+                            disabled={iniciada}
+                            className={`min-h-[56px] py-3 px-4 border-2 font-display font-bold uppercase tracking-widest text-sm transition-shadow focus-ring-activa ${cls}`}
                           >
-                            <div>{activa ? `● ${ola.nombre}` : iniciada ? `✓ ${ola.nombre}` : `▶ ${ola.nombre}`}</div>
+                            <div>{iniciada ? `● ${ola.nombre} · en curso` : `▶ Iniciar ${ola.nombre}`}</div>
                             {iniciada && (
-                              <div className="font-mono text-[10px] mt-1 opacity-60 normal-case">
+                              <div className="font-mono text-xs mt-1 opacity-70 normal-case">
                                 {new Date(ola.horaInicio).toLocaleTimeString('es-MX')}
                               </div>
                             )}
@@ -514,7 +487,7 @@ export default function Timing() {
           {tiempos.slice(0, 20).map(t => {
             const a = atletas.find(at => at.dorsal === t.dorsal)
             return (
-              <div key={t.id} className="flex items-center justify-between px-4 py-2 border-t border-border hover:bg-surface/50 group">
+              <div key={t.id} className="flex items-center justify-between px-4 py-2 border-t border-border hover:bg-surface/50">
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="font-mono font-bold text-text-hi w-12 shrink-0">{t.dorsal}</span>
                   <span className="text-text-mid text-sm truncate">
@@ -526,8 +499,8 @@ export default function Timing() {
                   <span className="font-mono text-activa text-sm">{msAHora(t.tiempoNeto)}</span>
                   {!terminada && (
                     <>
-                      <button onClick={() => setModalEditar(t)} className="opacity-0 group-hover:opacity-100 text-text-lo hover:text-text-hi text-xs transition-all" aria-label="Editar">✏️</button>
-                      <button onClick={() => eliminarTiempo(t.id)} className="opacity-0 group-hover:opacity-100 text-text-lo hover:text-danger text-xs transition-all" aria-label="Eliminar">✕</button>
+                      <button onClick={() => setModalEditar(t)} className="min-h-[40px] min-w-[40px] text-text-mid hover:text-text-hi text-sm transition-colors" aria-label="Editar">✏️</button>
+                      <button onClick={() => eliminarTiempo(t.id)} className="min-h-[40px] min-w-[40px] text-text-mid hover:text-danger text-sm transition-colors" aria-label="Eliminar">✕</button>
                     </>
                   )}
                 </div>

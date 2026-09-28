@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import NeonButton from './ui/NeonButton'
 
-export default function ModalAtleta({ atleta, categorias, onGuardar, onCerrar }) {
+export default function ModalAtleta({ atleta, categorias, distancias = [], onGuardar, onCerrar }) {
   const [form, setForm] = useState({
     dorsal: atleta.dorsal ?? '',
     nombre: atleta.nombre ?? '',
@@ -10,12 +10,15 @@ export default function ModalAtleta({ atleta, categorias, onGuardar, onCerrar })
     añoNacimiento: atleta.añoNacimiento || null,
     categoriaId: atleta.categoriaId ?? '',
     olaId: atleta.olaId ?? '',
+    // The only distance is the obvious pick; with several the operator chooses.
+    distanciaId: atleta.distanciaId || (distancias.length === 1 ? distancias[0].id : ''),
     email: atleta.email ?? '',
     telefono: atleta.telefono ?? '',
     ...(atleta.id ? { id: atleta.id } : {}),
   })
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+  const faltaDistancia = distancias.length > 0 && !form.distanciaId
   const inputCls = 'w-full bg-bg border border-border focus:border-activa px-3 py-2 text-text-hi text-sm focus:outline-none transition-colors disabled:opacity-40'
   const labelCls = 'block text-[10px] font-display uppercase tracking-widest text-text-lo mb-1'
 
@@ -85,6 +88,19 @@ export default function ModalAtleta({ atleta, categorias, onGuardar, onCerrar })
             </select>
           </div>
           <div>
+            <label htmlFor="atleta-distancia" className={labelCls}>Distancia{distancias.length > 0 ? ' *' : ''}</label>
+            <select
+              id="atleta-distancia"
+              className={inputCls}
+              value={form.distanciaId}
+              onChange={e => set('distanciaId', e.target.value)}
+              disabled={distancias.length === 0}
+            >
+              <option value="">{distancias.length > 0 ? 'Elige una distancia' : 'Sin distancias'}</option>
+              {distancias.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+            </select>
+          </div>
+          <div>
             <label className={labelCls}>Teléfono</label>
             <input className={inputCls} value={form.telefono} onChange={e => set('telefono', e.target.value)} />
           </div>
@@ -101,7 +117,7 @@ export default function ModalAtleta({ atleta, categorias, onGuardar, onCerrar })
             variant="primary"
             size="md"
             onClick={() => onGuardar(form)}
-            disabled={!form.dorsal || !form.nombre || !form.apellido}
+            disabled={!form.dorsal || !form.nombre || !form.apellido || faltaDistancia}
             className="flex-1"
           >
             Guardar

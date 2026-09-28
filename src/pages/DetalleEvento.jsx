@@ -8,8 +8,9 @@ import PhaseBadge from '../components/ui/PhaseBadge'
 import PhaseStrip from '../components/ui/PhaseStrip'
 import PhaseConfirmModal from '../components/ui/PhaseConfirmModal'
 import NeonButton from '../components/ui/NeonButton'
-import { uid } from '../utils/tiempo'
-import { esEditable, esTerminada, puedeTransicionar } from '../utils/estado'
+import EditorCategorias from '../components/EditorCategorias'
+import EditorDistancias from '../components/EditorDistancias'
+import { esEditable, esTerminada, puedeTransicionar, tipoDeInicio } from '../utils/estado'
 
 const TABS = ['Atletas', 'Cronometraje', 'Resultados', 'Configuración']
 
@@ -23,7 +24,7 @@ export default function DetalleEvento() {
   const [modalAtleta, setModalAtleta] = useState(null)
   const [mostrarCSV, setMostrarCSV] = useState(false)
   const [categorias, setCategorias] = useState([])
-  const [configInicio, setConfigInicio] = useState({ inicioTipo: 'unico', horaInicio: null, olas: [] })
+  const [distancias, setDistancias] = useState([])
   const [guardando, setGuardando] = useState(false)
   const [transicion, setTransicion] = useState(null) // { desde, hasta }
 
@@ -31,21 +32,26 @@ export default function DetalleEvento() {
   const editable = esEditable(evento)
   const terminada = esTerminada(evento)
 
-  async function cargar() {
-    const ev = await db.eventos.get(eventoId)
-    setEvento(ev)
-    const a = await db.atletas.where('eventoId').equals(eventoId).toArray()
-    setAtletas(a)
-  }
-
-  useEffect(() => { cargar() }, [eventoId])
-
+  // The first load fills the event, its editors and the athletes. Later
+  // reloads only refresh athletes, so unsaved Configuración edits survive.
   useEffect(() => {
-    if (evento) {
-      setCategorias(evento.categorias ?? [])
-      setConfigInicio(evento.configuracion ?? { inicioTipo: 'unico', horaInicio: null })
-    }
-  }, [evento])
+    let vigente = true
+    Promise.all([
+      db.eventos.get(eventoId),
+      db.atletas.where('eventoId').equals(eventoId).toArray(),
+    ]).then(([ev, a]) => {
+      if (!vigente) return
+      setEvento(ev)
+      setCategorias(ev?.categorias ?? [])
+      setDistancias(ev?.distancias ?? [])
+      setAtletas(a)
+    })
+    return () => { vigente = false }
+  }, [eventoId])
+
+  async function recargarAtletas() {
+    setAtletas(await db.atletas.where('eventoId').equals(eventoId).toArray())
+  }
 
   async function confirmarTransicion() {
     if (!transicion) return
@@ -53,6 +59,9 @@ export default function DetalleEvento() {
     if (!check.ok) return
     await db.eventos.update(eventoId, { estado: transicion.hasta })
     setEvento(p => ({ ...p, estado: transicion.hasta }))
+    // Configuración locks outside Preparación: drop edits that were never saved.
+    setCategorias(evento.categorias ?? [])
+    setDistancias(evento.distancias ?? [])
     setTransicion(null)
   }
 
@@ -78,42 +87,14 @@ export default function DetalleEvento() {
       return
     }
     setModalAtleta(null)
-    cargar()
-  }
-
-  function agregarCategoria() {
-    setCategorias(p => [...p, { id: uid(), nombre: '', genero: 'M', edadMin: null, edadMax: null }])
-  }
-  function actualizarCategoria(id, campo, valor) {
-    setCategorias(p => p.map(c => c.id === id ? { ...c, [campo]: valor } : c))
-  }
-  function eliminarCategoria(id) {
-    setCategorias(p => p.filter(c => c.id !== id))
-  }
-
-  function agregarOlaEnCategoria(catId) {
-    setCategorias(p => p.map(c => c.id !== catId ? c : {
-      ...c,
-      olas: [...(c.olas ?? []), { id: uid(), nombre: `Ola ${(c.olas ?? []).length + 1}`, horaProgramada: '' }],
-    }))
-  }
-  function actualizarOlaEnCategoria(catId, olaId, campo, valor) {
-    setCategorias(p => p.map(c => c.id !== catId ? c : {
-      ...c,
-      olas: c.olas.map(o => o.id === olaId ? { ...o, [campo]: valor } : o),
-    }))
-  }
-  function eliminarOlaEnCategoria(catId, olaId) {
-    setCategorias(p => p.map(c => c.id !== catId ? c : {
-      ...c,
-      olas: c.olas.filter(o => o.id !== olaId),
-    }))
+    recargarAtletas()
   }
 
   async function guardarConfig() {
     setGuardando(true)
-    await db.eventos.update(eventoId, { categorias, configuracion: configInicio })
-    setEvento(p => ({ ...p, categorias, configuracion: configInicio }))
+    const configuracion = { ...evento.configuracion, inicioTipo: tipoDeInicio(categorias) }
+    await db.eventos.update(eventoId, { categorias, distancias, configuracion })
+    setEvento(p => ({ ...p, categorias, distancias, configuracion }))
     setGuardando(false)
   }
 
@@ -143,6 +124,11 @@ export default function DetalleEvento() {
       Cargando…
     </div>
   )
+
+  const atletasPorDistancia = {}
+  atletas.forEach(a => {
+    if (a.distanciaId) atletasPorDistancia[a.distanciaId] = (atletasPorDistancia[a.distanciaId] ?? 0) + 1
+  })
 
   const atletasFiltrados = atletas.filter(a =>
     !busqueda ||
@@ -176,15 +162,17 @@ export default function DetalleEvento() {
               <p className="text-text-mid text-sm mt-1">{evento.lugar} · {evento.fecha}</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <a
+              <NeonButton
+                variant="ghost"
+                size="md"
+                as="a"
                 href={`/pantalla/${id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 min-h-[44px] bg-bg border border-border-hi hover:border-activa hover:text-activa text-text-mid font-display text-xs uppercase tracking-widest transition-colors focus-ring-activa"
               >
                 📺 Abrir Pantalla
                 <span className="opacity-60" aria-hidden="true">↗</span>
-              </a>
+              </NeonButton>
               {!terminada && (
                 <NeonButton
                   variant="primary"
@@ -263,7 +251,7 @@ export default function DetalleEvento() {
                   evento={evento}
                   categorias={evento.categorias ?? []}
                   distancias={evento.distancias ?? []}
-                  onImportado={() => { setMostrarCSV(false); cargar() }}
+                  onImportado={() => { setMostrarCSV(false); recargarAtletas() }}
                 />
               </div>
             )}
@@ -288,6 +276,7 @@ export default function DetalleEvento() {
                       <th scope="col" className="px-4 py-3">Nombre</th>
                       <th scope="col" className="px-4 py-3 hidden sm:table-cell">Categoría</th>
                       <th scope="col" className="px-4 py-3 hidden sm:table-cell">Ola</th>
+                      <th scope="col" className="px-4 py-3 hidden md:table-cell">Distancia</th>
                       <th scope="col" className="px-4 py-3">Estado</th>
                       <th scope="col" className="px-4 py-3 hidden md:table-cell">Email</th>
                       <th scope="col" className="px-4 py-3"></th>
@@ -297,6 +286,7 @@ export default function DetalleEvento() {
                     {atletasFiltrados.map(a => {
                       const cat = evento.categorias?.find(c => c.id === a.categoriaId)
                       const ola = cat?.olas?.find(o => o.id === a.olaId)
+                      const dist = evento.distancias?.find(d => d.id === a.distanciaId)
                       const status = a.status ?? 'activo'
                       return (
                         <tr key={a.id} className="border-t border-border hover:bg-elevated/50 text-text-mid">
@@ -307,6 +297,7 @@ export default function DetalleEvento() {
                           </td>
                           <td className="px-4 py-3 hidden sm:table-cell text-text-mid">{cat?.nombre ?? '—'}</td>
                           <td className="px-4 py-3 hidden sm:table-cell text-text-mid">{ola?.nombre ?? '—'}</td>
+                          <td className="px-4 py-3 hidden md:table-cell text-text-mid">{dist?.nombre ?? '—'}</td>
                           <td className="px-4 py-3">
                             <select
                               value={status}
@@ -349,116 +340,22 @@ export default function DetalleEvento() {
               </div>
             )}
 
-            {/* Tipo de inicio */}
-            <div className="bg-surface p-5 border border-border space-y-4">
-              <h2 className="font-display text-xs uppercase tracking-widest text-text-lo">Tipo de inicio</h2>
-              <div className="flex gap-3">
-                {['unico', 'olas'].map(tipo => {
-                  const sel = configInicio.inicioTipo === tipo
-                  return (
-                    <button
-                      key={tipo}
-                      onClick={() => editable && setConfigInicio(p => ({ ...p, inicioTipo: tipo }))}
-                      disabled={!editable}
-                      className={`flex-1 py-3 border font-display uppercase tracking-widest text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${sel ? 'border-activa text-activa glow-activa' : 'border-border text-text-mid hover:border-border-hi'}`}
-                    >
-                      {tipo === 'unico' ? '🚀 Salida única' : '🌊 Por olas'}
-                    </button>
-                  )
-                })}
-              </div>
+            <div className="bg-surface p-5 border border-border">
+              <EditorDistancias
+                distancias={distancias}
+                onChange={setDistancias}
+                editable={editable}
+                enUso={atletasPorDistancia}
+              />
             </div>
 
-            {/* Categorías con olas anidadas */}
-            <div className="space-y-3">
-              <h2 className="font-display text-xs uppercase tracking-widest text-text-lo">Categorías</h2>
-              {categorias.map(c => (
-                <div key={c.id} className="bg-surface border border-border p-4 space-y-3">
-                  <div className="grid grid-cols-[1fr_70px_60px_60px_28px] gap-2 items-center">
-                    <input
-                      className="bg-bg border border-border focus:border-activa px-3 py-2 text-text-hi text-sm focus:outline-none disabled:opacity-40"
-                      placeholder="M 30-34"
-                      disabled={!editable}
-                      value={c.nombre}
-                      onChange={e => actualizarCategoria(c.id, 'nombre', e.target.value)}
-                    />
-                    <select
-                      className="bg-bg border border-border focus:border-activa px-2 py-2 text-text-hi text-sm focus:outline-none disabled:opacity-40"
-                      disabled={!editable}
-                      value={c.genero}
-                      onChange={e => actualizarCategoria(c.id, 'genero', e.target.value)}
-                    >
-                      <option value="M">M</option>
-                      <option value="F">F</option>
-                      <option value="X">X</option>
-                    </select>
-                    <input
-                      type="number"
-                      placeholder="Edad mín"
-                      className="bg-bg border border-border focus:border-activa px-2 py-2 text-text-hi text-sm focus:outline-none disabled:opacity-40"
-                      disabled={!editable}
-                      value={c.edadMin ?? ''}
-                      onChange={e => actualizarCategoria(c.id, 'edadMin', e.target.value === '' ? null : Number(e.target.value))}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Edad máx"
-                      className="bg-bg border border-border focus:border-activa px-2 py-2 text-text-hi text-sm focus:outline-none disabled:opacity-40"
-                      disabled={!editable}
-                      value={c.edadMax ?? ''}
-                      onChange={e => actualizarCategoria(c.id, 'edadMax', e.target.value === '' ? null : Number(e.target.value))}
-                    />
-                    <button
-                      onClick={() => eliminarCategoria(c.id)}
-                      className="text-text-lo hover:text-danger transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                      disabled={!editable || categorias.length === 1}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  {(c.olas ?? []).map(ola => (
-                    <div key={ola.id} className="flex gap-2 items-center pl-3 border-l-2 border-border">
-                      <input
-                        className="flex-1 bg-bg border border-border focus:border-activa px-3 py-1.5 text-text-hi text-sm focus:outline-none disabled:opacity-40"
-                        placeholder="Nombre de ola"
-                        disabled={!editable}
-                        value={ola.nombre}
-                        onChange={e => actualizarOlaEnCategoria(c.id, ola.id, 'nombre', e.target.value)}
-                      />
-                      <input
-                        type="time"
-                        className="bg-bg border border-border focus:border-activa px-3 py-1.5 text-text-hi text-sm focus:outline-none disabled:opacity-40"
-                        disabled={!editable}
-                        value={ola.horaProgramada ?? ''}
-                        onChange={e => actualizarOlaEnCategoria(c.id, ola.id, 'horaProgramada', e.target.value)}
-                      />
-                      <button
-                        onClick={() => eliminarOlaEnCategoria(c.id, ola.id)}
-                        disabled={!editable}
-                        className="text-text-lo hover:text-danger transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                  {editable && (
-                    <button
-                      onClick={() => agregarOlaEnCategoria(c.id)}
-                      className="text-text-mid hover:text-activa text-xs font-display uppercase tracking-widest transition-colors pl-1"
-                    >
-                      + ola
-                    </button>
-                  )}
-                </div>
-              ))}
-              {editable && (
-                <button
-                  onClick={agregarCategoria}
-                  className="text-activa hover:text-text-hi text-sm font-display uppercase tracking-widest transition-colors"
-                >
-                  + Categoría
-                </button>
-              )}
+            <div className="bg-surface p-5 border border-border">
+              <EditorCategorias
+                categorias={categorias}
+                onChange={setCategorias}
+                editable={editable}
+                inicioTipo={editable ? undefined : evento.configuracion?.inicioTipo}
+              />
             </div>
 
             {editable && (
@@ -481,6 +378,7 @@ export default function DetalleEvento() {
         <ModalAtleta
           atleta={modalAtleta}
           categorias={evento.categorias ?? []}
+          distancias={evento.distancias ?? []}
           onGuardar={guardarAtleta}
           onCerrar={() => setModalAtleta(null)}
         />
