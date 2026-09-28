@@ -1,0 +1,135 @@
+<style>
+.tv{background:#08090B;aspect-ratio:16/9;width:100%;display:flex;flex-direction:column;font-family:ui-sans-serif,system-ui,sans-serif;color:#F4F5F7;border:1px solid #2A2D35}
+.tv-top{display:flex;align-items:center;gap:12px;padding:5px 10px;border-bottom:1px solid #2A2D35;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#6B6E78}
+.tv-top b{color:#F4F5F7;font-size:11px;letter-spacing:.05em}
+.tv-top .vivo{color:#00FF88}
+.tv-top .r8{margin-left:auto}
+.tv-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:6px;padding:6px;min-height:0}
+.pn{background:#14151A;border:1px solid #2A2D35;padding:6px 8px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.pn-h{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #3D414D;padding-bottom:3px;margin-bottom:2px}
+.pn-h b{font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.pn-h span{font-size:8px;color:#6B6E78;letter-spacing:.1em;text-transform:uppercase}
+.r{display:grid;grid-template-columns:18px 28px 1fr auto;gap:4px;align-items:center;font-size:9px;padding:2px 4px;color:#B6B9C2;border-bottom:1px solid #2A2D35}
+.r .n{font-family:ui-monospace,monospace;color:#6B6E78}
+.r .t{font-family:ui-monospace,monospace;color:#00FF88}
+.r.p{font-size:11.5px;font-weight:700;color:#F4F5F7;padding:3px 4px}
+.r.last-p{border-bottom:2px solid #3D414D}
+.zebra .r.z{background:#1C1E25}
+.pg{margin-top:auto;display:flex;justify-content:flex-end;gap:3px;align-items:center;font-size:7px;color:#6B6E78;letter-spacing:.1em;padding-top:2px}
+.pg i{width:5px;height:5px;border-radius:50%;background:#3D414D;display:inline-block}
+.pg i.on{background:#00FF88}
+.wait{margin:auto;font-size:8px;color:#6B6E78;letter-spacing:.14em;text-transform:uppercase}
+</style>
+
+<h2>Design A with separation lines — which one?</h2>
+<p class="subtitle">Every competitor gets their own line so the eye can follow a name across to its time. A thicker line marks where the fixed podium ends and the paging rows start.</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a1" onclick="toggleSelect(this)">
+    <div class="letter">A1</div>
+    <div class="content">
+      <h3>Lines between rows</h3>
+      <p>A thin line under every competitor.</p>
+      <div class="tv">
+        <div class="tv-top"><b>Triatlón San Cristóbal 2026</b><span class="vivo">● En vivo</span><span class="r8">Pantalla 1 de 2 · 09:47</span></div>
+        <div class="tv-grid">
+          <div class="pn">
+            <div class="pn-h"><b>M 30-34</b><span>12 llegadas</span></div>
+            <div class="r p"><span>🥇</span><span class="n">102</span><span>Beto Cruz</span><span class="t">00:25:12</span></div>
+            <div class="r p"><span>🥈</span><span class="n">115</span><span>Luis Gómez</span><span class="t">00:26:40</span></div>
+            <div class="r p last-p"><span>🥉</span><span class="n">121</span><span>Diego Pérez</span><span class="t">00:27:05</span></div>
+            <div class="r"><span>4</span><span class="n">133</span><span>Juan Ruiz</span><span class="t">00:28:10</span></div>
+            <div class="r"><span>5</span><span class="n">140</span><span>Pedro Sol</span><span class="t">00:28:55</span></div>
+            <div class="r"><span>6</span><span class="n">151</span><span>Raúl Díaz</span><span class="t">00:29:30</span></div>
+            <div class="r"><span>7</span><span class="n">162</span><span>Iván Mora</span><span class="t">00:30:02</span></div>
+            <div class="r"><span>8</span><span class="n">170</span><span>Hugo Paz</span><span class="t">00:31:47</span></div>
+            <div class="pg"><i class="on"></i><i></i>&nbsp;1/2</div>
+          </div>
+          <div class="pn">
+            <div class="pn-h"><b>F 30-34</b><span>7 llegadas</span></div>
+            <div class="r p"><span>🥇</span><span class="n">101</span><span>Ana López</span><span class="t">00:30:00</span></div>
+            <div class="r p"><span>🥈</span><span class="n">118</span><span>María Ibáñez</span><span class="t">00:31:20</span></div>
+            <div class="r p last-p"><span>🥉</span><span class="n">125</span><span>Sofía Luna</span><span class="t">00:32:45</span></div>
+            <div class="r"><span>4</span><span class="n">131</span><span>Carla Núñez</span><span class="t">00:33:10</span></div>
+            <div class="r"><span>5</span><span class="n">144</span><span>Elena Ríos</span><span class="t">00:34:02</span></div>
+            <div class="r"><span>6</span><span class="n">150</span><span>Lucía Vega</span><span class="t">00:35:30</span></div>
+            <div class="r"><span>7</span><span class="n">158</span><span>Paula Cano</span><span class="t">00:36:12</span></div>
+          </div>
+          <div class="pn">
+            <div class="pn-h"><b>M 35-39</b><span>15 llegadas</span></div>
+            <div class="r p"><span>🥇</span><span class="n">205</span><span>Óscar León</span><span class="t">00:26:05</span></div>
+            <div class="r p"><span>🥈</span><span class="n">211</span><span>Tomás Rey</span><span class="t">00:26:59</span></div>
+            <div class="r p last-p"><span>🥉</span><span class="n">219</span><span>Andrés Gil</span><span class="t">00:27:44</span></div>
+            <div class="r"><span>9</span><span class="n">240</span><span>Mario Cruz</span><span class="t">00:31:02</span></div>
+            <div class="r"><span>10</span><span class="n">244</span><span>Félix Ortiz</span><span class="t">00:31:40</span></div>
+            <div class="r"><span>11</span><span class="n">250</span><span>Jorge Sanz</span><span class="t">00:32:15</span></div>
+            <div class="r"><span>12</span><span class="n">256</span><span>Emilio Paz</span><span class="t">00:33:01</span></div>
+            <div class="r"><span>13</span><span class="n">261</span><span>Rubén Soto</span><span class="t">00:34:20</span></div>
+            <div class="pg"><i></i><i class="on"></i><i></i>&nbsp;2/3</div>
+          </div>
+          <div class="pn">
+            <div class="pn-h"><b>F 35-39</b><span>2 llegadas</span></div>
+            <div class="r p"><span>🥇</span><span class="n">301</span><span>Laura Pérez</span><span class="t">00:33:55</span></div>
+            <div class="r p last-p"><span>🥈</span><span class="n">305</span><span>Rosa Méndez</span><span class="t">00:35:10</span></div>
+            <div class="wait">Esperando llegadas…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="a2" onclick="toggleSelect(this)">
+    <div class="letter">A2</div>
+    <div class="content">
+      <h3>Lines + alternating shading</h3>
+      <p>Same lines, and every other competitor gets a slightly lighter band — easiest to follow from far away.</p>
+      <div class="tv zebra">
+        <div class="tv-top"><b>Triatlón San Cristóbal 2026</b><span class="vivo">● En vivo</span><span class="r8">Pantalla 1 de 2 · 09:47</span></div>
+        <div class="tv-grid">
+          <div class="pn">
+            <div class="pn-h"><b>M 30-34</b><span>12 llegadas</span></div>
+            <div class="r p"><span>🥇</span><span class="n">102</span><span>Beto Cruz</span><span class="t">00:25:12</span></div>
+            <div class="r p z"><span>🥈</span><span class="n">115</span><span>Luis Gómez</span><span class="t">00:26:40</span></div>
+            <div class="r p last-p"><span>🥉</span><span class="n">121</span><span>Diego Pérez</span><span class="t">00:27:05</span></div>
+            <div class="r z"><span>4</span><span class="n">133</span><span>Juan Ruiz</span><span class="t">00:28:10</span></div>
+            <div class="r"><span>5</span><span class="n">140</span><span>Pedro Sol</span><span class="t">00:28:55</span></div>
+            <div class="r z"><span>6</span><span class="n">151</span><span>Raúl Díaz</span><span class="t">00:29:30</span></div>
+            <div class="r"><span>7</span><span class="n">162</span><span>Iván Mora</span><span class="t">00:30:02</span></div>
+            <div class="r z"><span>8</span><span class="n">170</span><span>Hugo Paz</span><span class="t">00:31:47</span></div>
+            <div class="pg"><i class="on"></i><i></i>&nbsp;1/2</div>
+          </div>
+          <div class="pn">
+            <div class="pn-h"><b>F 30-34</b><span>7 llegadas</span></div>
+            <div class="r p"><span>🥇</span><span class="n">101</span><span>Ana López</span><span class="t">00:30:00</span></div>
+            <div class="r p z"><span>🥈</span><span class="n">118</span><span>María Ibáñez</span><span class="t">00:31:20</span></div>
+            <div class="r p last-p"><span>🥉</span><span class="n">125</span><span>Sofía Luna</span><span class="t">00:32:45</span></div>
+            <div class="r z"><span>4</span><span class="n">131</span><span>Carla Núñez</span><span class="t">00:33:10</span></div>
+            <div class="r"><span>5</span><span class="n">144</span><span>Elena Ríos</span><span class="t">00:34:02</span></div>
+            <div class="r z"><span>6</span><span class="n">150</span><span>Lucía Vega</span><span class="t">00:35:30</span></div>
+            <div class="r"><span>7</span><span class="n">158</span><span>Paula Cano</span><span class="t">00:36:12</span></div>
+          </div>
+          <div class="pn">
+            <div class="pn-h"><b>M 35-39</b><span>15 llegadas</span></div>
+            <div class="r p"><span>🥇</span><span class="n">205</span><span>Óscar León</span><span class="t">00:26:05</span></div>
+            <div class="r p z"><span>🥈</span><span class="n">211</span><span>Tomás Rey</span><span class="t">00:26:59</span></div>
+            <div class="r p last-p"><span>🥉</span><span class="n">219</span><span>Andrés Gil</span><span class="t">00:27:44</span></div>
+            <div class="r z"><span>9</span><span class="n">240</span><span>Mario Cruz</span><span class="t">00:31:02</span></div>
+            <div class="r"><span>10</span><span class="n">244</span><span>Félix Ortiz</span><span class="t">00:31:40</span></div>
+            <div class="r z"><span>11</span><span class="n">250</span><span>Jorge Sanz</span><span class="t">00:32:15</span></div>
+            <div class="r"><span>12</span><span class="n">256</span><span>Emilio Paz</span><span class="t">00:33:01</span></div>
+            <div class="r z"><span>13</span><span class="n">261</span><span>Rubén Soto</span><span class="t">00:34:20</span></div>
+            <div class="pg"><i></i><i class="on"></i><i></i>&nbsp;2/3</div>
+          </div>
+          <div class="pn">
+            <div class="pn-h"><b>F 35-39</b><span>2 llegadas</span></div>
+            <div class="r p"><span>🥇</span><span class="n">301</span><span>Laura Pérez</span><span class="t">00:33:55</span></div>
+            <div class="r p z last-p"><span>🥈</span><span class="n">305</span><span>Rosa Méndez</span><span class="t">00:35:10</span></div>
+            <div class="wait">Esperando llegadas…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

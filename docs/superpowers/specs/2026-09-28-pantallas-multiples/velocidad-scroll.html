@@ -1,0 +1,106 @@
+<style>
+.pn{background:#14151A;border:1px solid #2A2D35;padding:8px 10px;display:flex;flex-direction:column;font-family:ui-sans-serif,system-ui,sans-serif;color:#F4F5F7;width:100%;text-align:left}
+.pn-h{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #3D414D;padding-bottom:4px;margin-bottom:2px}
+.pn-h b{font-size:14px;letter-spacing:.06em;text-transform:uppercase}
+.pn-h span{font-size:9px;color:#6B6E78;letter-spacing:.1em;text-transform:uppercase}
+.r{display:grid;grid-template-columns:22px 32px 1fr auto;gap:6px;align-items:center;font-size:11px;height:22px;padding:0 5px;color:#B6B9C2;border-bottom:1px solid #2A2D35;box-sizing:border-box}
+.r .n{font-family:ui-monospace,monospace;color:#6B6E78}
+.r .t{font-family:ui-monospace,monospace;color:#00FF88}
+.r.p{font-size:13px;font-weight:700;color:#F4F5F7;height:26px}
+.r.z{background:#1C1E25}
+.r.last-p{border-bottom:2px solid #3D414D}
+.win{height:110px;overflow:hidden;position:relative}
+.roll{animation-timing-function:linear;animation-iteration-count:infinite}
+.slow{animation-name:slow;animation-duration:28s}
+.mid{animation-name:mid;animation-duration:21s}
+.fast{animation-name:fast;animation-duration:15.4s}
+@keyframes slow{0%{transform:translateY(0);opacity:1}10.7%{transform:translateY(0)}85.7%{transform:translateY(-154px)}96.4%{transform:translateY(-154px);opacity:1}98.2%{transform:translateY(-154px);opacity:0}98.3%{transform:translateY(0);opacity:0}100%{transform:translateY(0);opacity:1}}
+@keyframes mid{0%{transform:translateY(0);opacity:1}14.3%{transform:translateY(0)}81%{transform:translateY(-154px)}95.2%{transform:translateY(-154px);opacity:1}97.6%{transform:translateY(-154px);opacity:0}97.7%{transform:translateY(0);opacity:0}100%{transform:translateY(0);opacity:1}}
+@keyframes fast{0%{transform:translateY(0);opacity:1}19.5%{transform:translateY(0)}74%{transform:translateY(-154px)}93.5%{transform:translateY(-154px);opacity:1}96.8%{transform:translateY(-154px);opacity:0}96.9%{transform:translateY(0);opacity:0}100%{transform:translateY(0);opacity:1}}
+.card-image{aspect-ratio:auto!important;padding:10px;background:#08090B!important}
+</style>
+
+<h2>How slow should the list scroll?</h2>
+<p class="subtitle">One panel of the TV (design A2) with 15 finishers. The podium stays put; places 4–15 scroll up slowly, pause 3 s at the start and at the end, then fade back to the top and start again. Watch each for a full loop.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="lento" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="pn">
+        <div class="pn-h"><b>M 35-39</b><span>15 llegadas</span></div>
+        <div class="r p"><span>🥇</span><span class="n">205</span><span>Óscar León</span><span class="t">00:26:05</span></div>
+        <div class="r p z"><span>🥈</span><span class="n">211</span><span>Tomás Rey</span><span class="t">00:26:59</span></div>
+        <div class="r p last-p"><span>🥉</span><span class="n">219</span><span>Andrés Gil</span><span class="t">00:27:44</span></div>
+        <div class="win"><div class="roll slow">
+          <div class="r z"><span>4</span><span class="n">224</span><span>Hugo Vera</span><span class="t">00:28:01</span></div>
+          <div class="r"><span>5</span><span class="n">228</span><span>Luis Paredes</span><span class="t">00:28:40</span></div>
+          <div class="r z"><span>6</span><span class="n">231</span><span>Iker Salas</span><span class="t">00:29:12</span></div>
+          <div class="r"><span>7</span><span class="n">233</span><span>Samuel Ríos</span><span class="t">00:29:58</span></div>
+          <div class="r z"><span>8</span><span class="n">237</span><span>Ángel Toro</span><span class="t">00:30:33</span></div>
+          <div class="r"><span>9</span><span class="n">240</span><span>Mario Cruz</span><span class="t">00:31:02</span></div>
+          <div class="r z"><span>10</span><span class="n">244</span><span>Félix Ortiz</span><span class="t">00:31:40</span></div>
+          <div class="r"><span>11</span><span class="n">250</span><span>Jorge Sanz</span><span class="t">00:32:15</span></div>
+          <div class="r z"><span>12</span><span class="n">256</span><span>Emilio Paz</span><span class="t">00:33:01</span></div>
+          <div class="r"><span>13</span><span class="n">261</span><span>Rubén Soto</span><span class="t">00:34:20</span></div>
+          <div class="r z"><span>14</span><span class="n">266</span><span>Abel Nieto</span><span class="t">00:35:05</span></div>
+          <div class="r"><span>15</span><span class="n">272</span><span>Gael Ramos</span><span class="t">00:36:40</span></div>
+        </div></div>
+      </div>
+    </div>
+    <div class="card-body"><h3>Slow</h3><p>1 row every 3 s — about 28 s per full loop here.</p></div>
+  </div>
+
+  <div class="card" data-choice="medio" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="pn">
+        <div class="pn-h"><b>M 35-39</b><span>15 llegadas</span></div>
+        <div class="r p"><span>🥇</span><span class="n">205</span><span>Óscar León</span><span class="t">00:26:05</span></div>
+        <div class="r p z"><span>🥈</span><span class="n">211</span><span>Tomás Rey</span><span class="t">00:26:59</span></div>
+        <div class="r p last-p"><span>🥉</span><span class="n">219</span><span>Andrés Gil</span><span class="t">00:27:44</span></div>
+        <div class="win"><div class="roll mid">
+          <div class="r z"><span>4</span><span class="n">224</span><span>Hugo Vera</span><span class="t">00:28:01</span></div>
+          <div class="r"><span>5</span><span class="n">228</span><span>Luis Paredes</span><span class="t">00:28:40</span></div>
+          <div class="r z"><span>6</span><span class="n">231</span><span>Iker Salas</span><span class="t">00:29:12</span></div>
+          <div class="r"><span>7</span><span class="n">233</span><span>Samuel Ríos</span><span class="t">00:29:58</span></div>
+          <div class="r z"><span>8</span><span class="n">237</span><span>Ángel Toro</span><span class="t">00:30:33</span></div>
+          <div class="r"><span>9</span><span class="n">240</span><span>Mario Cruz</span><span class="t">00:31:02</span></div>
+          <div class="r z"><span>10</span><span class="n">244</span><span>Félix Ortiz</span><span class="t">00:31:40</span></div>
+          <div class="r"><span>11</span><span class="n">250</span><span>Jorge Sanz</span><span class="t">00:32:15</span></div>
+          <div class="r z"><span>12</span><span class="n">256</span><span>Emilio Paz</span><span class="t">00:33:01</span></div>
+          <div class="r"><span>13</span><span class="n">261</span><span>Rubén Soto</span><span class="t">00:34:20</span></div>
+          <div class="r z"><span>14</span><span class="n">266</span><span>Abel Nieto</span><span class="t">00:35:05</span></div>
+          <div class="r"><span>15</span><span class="n">272</span><span>Gael Ramos</span><span class="t">00:36:40</span></div>
+        </div></div>
+      </div>
+    </div>
+    <div class="card-body"><h3>Medium</h3><p>1 row every 2 s — about 21 s per full loop here.</p></div>
+  </div>
+
+  <div class="card" data-choice="rapido" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="pn">
+        <div class="pn-h"><b>M 35-39</b><span>15 llegadas</span></div>
+        <div class="r p"><span>🥇</span><span class="n">205</span><span>Óscar León</span><span class="t">00:26:05</span></div>
+        <div class="r p z"><span>🥈</span><span class="n">211</span><span>Tomás Rey</span><span class="t">00:26:59</span></div>
+        <div class="r p last-p"><span>🥉</span><span class="n">219</span><span>Andrés Gil</span><span class="t">00:27:44</span></div>
+        <div class="win"><div class="roll fast">
+          <div class="r z"><span>4</span><span class="n">224</span><span>Hugo Vera</span><span class="t">00:28:01</span></div>
+          <div class="r"><span>5</span><span class="n">228</span><span>Luis Paredes</span><span class="t">00:28:40</span></div>
+          <div class="r z"><span>6</span><span class="n">231</span><span>Iker Salas</span><span class="t">00:29:12</span></div>
+          <div class="r"><span>7</span><span class="n">233</span><span>Samuel Ríos</span><span class="t">00:29:58</span></div>
+          <div class="r z"><span>8</span><span class="n">237</span><span>Ángel Toro</span><span class="t">00:30:33</span></div>
+          <div class="r"><span>9</span><span class="n">240</span><span>Mario Cruz</span><span class="t">00:31:02</span></div>
+          <div class="r z"><span>10</span><span class="n">244</span><span>Félix Ortiz</span><span class="t">00:31:40</span></div>
+          <div class="r"><span>11</span><span class="n">250</span><span>Jorge Sanz</span><span class="t">00:32:15</span></div>
+          <div class="r z"><span>12</span><span class="n">256</span><span>Emilio Paz</span><span class="t">00:33:01</span></div>
+          <div class="r"><span>13</span><span class="n">261</span><span>Rubén Soto</span><span class="t">00:34:20</span></div>
+          <div class="r z"><span>14</span><span class="n">266</span><span>Abel Nieto</span><span class="t">00:35:05</span></div>
+          <div class="r"><span>15</span><span class="n">272</span><span>Gael Ramos</span><span class="t">00:36:40</span></div>
+        </div></div>
+      </div>
+    </div>
+    <div class="card-body"><h3>Faster</h3><p>1 row every 1.2 s — about 15 s per full loop here.</p></div>
+  </div>
+
+</div>

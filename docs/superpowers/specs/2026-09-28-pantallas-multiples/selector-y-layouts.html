@@ -1,0 +1,64 @@
+<style>
+.scr{background:#08090B;border:1px solid #2A2D35;font-family:ui-sans-serif,system-ui,sans-serif;color:#F4F5F7;position:relative;aspect-ratio:16/9;width:100%;overflow:hidden}
+.bar{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#14151A;border-bottom:1px solid #2A2D35;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#6B6E78}
+.bar .sel{border:1px solid #2A2D35;background:#08090B;color:#F4F5F7;padding:3px 6px;letter-spacing:.04em;text-transform:none;font-size:10px}
+.bar .btn{border:1px solid #00FF88;background:#00FF88;color:#08090B;padding:3px 8px;font-weight:700}
+.bar .ghost{border:1px solid #3D414D;color:#F4F5F7;padding:3px 8px;margin-left:auto}
+.drop{position:absolute;top:30px;left:190px;width:300px;background:#1C1E25;border:1px solid #3D414D;padding:10px;font-size:10px;color:#B6B9C2;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.drop h4{margin:0 0 6px;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#6B6E78;font-weight:600}
+.chk{display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #2A2D35;color:#F4F5F7}
+.chk i{width:10px;height:10px;border:1px solid #3D414D;display:inline-block}
+.chk i.on{background:#00FF88;border-color:#00FF88}
+.chk.dis{color:#6B6E78}
+.cnt{font-size:9px;color:#FFB800;margin:4px 0 8px}
+.lnk{display:block;border:1px solid #3D414D;color:#F4F5F7;padding:5px 7px;margin-top:5px;font-size:10px}
+.lnk small{display:block;color:#6B6E78;font-size:8.5px;margin-top:1px}
+.bg{position:absolute;inset:30px 0 0 0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:6px;padding:6px;opacity:.35}
+.bg div{background:#14151A;border:1px solid #2A2D35}
+.lay{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
+.th{background:#08090B;border:1px solid #2A2D35;aspect-ratio:16/9;display:grid;gap:3px;padding:3px}
+.th div{background:#1C1E25;border:1px solid #3D414D;display:flex;align-items:center;justify-content:center;font-size:9px;color:#6B6E78;font-family:ui-sans-serif,system-ui,sans-serif}
+.cap{font-size:.8rem;color:var(--text-secondary);margin-top:4px;text-align:center}
+</style>
+
+<h2>Part 1 — the screen and choosing panels</h2>
+<p class="subtitle">Pantalla keeps today's general table when nothing is picked. The "Paneles" button opens this picker; the choice goes into the URL, so each TV window keeps its own panels.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Pantalla with the picker open (operator's view, before going full screen)</div>
+  <div class="mockup-body">
+    <div class="scr">
+      <div class="bar">📺 Pantalla <span class="sel">Triatlón San Cristóbal 2026 ▾</span><span class="btn">▦ Paneles (2/4)</span><span class="ghost">📂 Importar JSON</span></div>
+      <div class="bg"><div></div><div></div><div></div><div></div></div>
+      <div class="drop">
+        <h4>Paneles de esta pantalla · máx. 4</h4>
+        <div class="chk"><i class="on"></i>M 30-34</div>
+        <div class="chk"><i class="on"></i>F 30-34</div>
+        <div class="chk"><i></i>M 35-39</div>
+        <div class="chk"><i></i>F 35-39</div>
+        <div class="chk"><i></i>Élite M · Ola 1</div>
+        <div class="chk"><i></i>Élite M · Ola 2</div>
+        <div class="cnt">2 de 4 elegidos</div>
+        <h4>Pantallas listas (todas las categorías, en orden)</h4>
+        <div class="lnk">Pantalla 1 de 2 ↗<small>M 30-34 · F 30-34 · M 35-39 · F 35-39</small></div>
+        <div class="lnk">Pantalla 2 de 2 ↗<small>Élite M · Ola 1 · Élite M · Ola 2</small></div>
+        <div class="lnk">Tabla general</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:1.5rem">
+  <h3>How the screen splits for 1–4 panels</h3>
+  <div class="lay">
+    <div><div class="th" style="grid-template-columns:1fr"><div>M 30-34</div></div><div class="cap">1 — full screen, biggest text</div></div>
+    <div><div class="th" style="grid-template-columns:1fr 1fr"><div>M 30-34</div><div>F 30-34</div></div><div class="cap">2 — side by side, tall panels</div></div>
+    <div><div class="th" style="grid-template-columns:1fr 1fr 1fr"><div>M 30</div><div>F 30</div><div>M 35</div></div><div class="cap">3 — three columns</div></div>
+    <div><div class="th" style="grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr"><div>M 30</div><div>F 30</div><div>M 35</div><div>F 35</div></div><div class="cap">4 — 2 × 2 (design A2)</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>On the TV</h3>
+  <p class="subtitle" style="margin:0">After 3 s without moving the mouse the control bar hides, leaving the thin title strip (event · ● En vivo · clock) and the panels. Moving the mouse brings it back. Press F11 for full screen as today.</p>
+</div>
